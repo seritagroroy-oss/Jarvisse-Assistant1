@@ -111,7 +111,8 @@ app.post("/chat", authenticateToken, async (req, res) => {
             const r = await getOpenRouter(
                 model === "gpt" ? "openai/gpt-4o-mini" : 
                 model === "claude" ? "anthropic/claude-3-haiku" : 
-                "google/gemini-pro-1.5"
+                model === "gemma" ? "google/gemma-2-9b-it:free" :
+                finalGeminiModel
             );
             results[model] = r.data.choices[0].message.content;
         }

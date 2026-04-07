@@ -279,6 +279,7 @@ export default function App() {
     { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro (Haut QI)" },
     { id: "google/gemini-flash-1.5", name: "Gemini 1.5 Flash (Rapide)" },
     { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash (Expérimental)" },
+    { id: "google/gemma-2-9b-it:free", name: "Gemma 2 (Open Source)" },
     { id: "google/gemini-pro", name: "Gemini 1.0 Pro (Standard)" },
   ];
 
@@ -843,6 +844,7 @@ export default function App() {
     { id: "gpt", name: "GPT-4o", icon: <Bot size={10} /> },
     { id: "gemini", name: "Gemini", icon: <Bot size={10} /> },
     { id: "claude", name: "Claude", icon: <Bot size={10} /> },
+    { id: "gemma", name: "Gemma", icon: <Bot size={10} /> },
     { id: "image", name: "Vision", icon: <ImageIcon size={10} /> },
   ].filter(m => !isMobile || !m.hideOnMobile);
 
