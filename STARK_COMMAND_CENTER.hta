@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JARVISSE - CENTRE DE COMMANDE TACTIQUE</title>
+    <hta:application 
+        id="HTAApp"
+        applicationname="jarvisseBuild"
+        border="thin"
+        borderstyle="normal"
+        caption="yes"
+        contextmenu="no"
+        innerborder="no"
+        maximizebutton="no"
+        minimizebutton="yes"
+        navigable="no"
+        scroll="no"
+        selection="no"
+        showintaskbar="yes"
+        singleinstance="yes"
+        sysmenu="yes"
+        windowstate="normal"
+    />
+    <style>
+        body {
+            background-color: #05060f;
+            color: #06b6d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+            border: 2px solid #06b6d4;
+        }
+        h1 {
+            text-align: center;
+            font-size: 18px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #06b6d4;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            color: #06b6d4;
+            text-shadow: 0 0 10px #06b6d4;
+        }
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        button {
+            background: rgba(6, 182, 212, 0.1);
+            color: #06b6d4;
+            border: 1px solid #06b6d4;
+            padding: 15px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 12px;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            outline: none;
+        }
+        button:hover {
+            background: #06b6d4;
+            color: #05060f;
+            box-shadow: 0 0 20px #06b6d4;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 8px;
+            text-align: center;
+            opacity: 0.5;
+            letter-spacing: 3px;
+        }
+    </style>
+    <script language="VBScript">
+        Sub Window_OnLoad
+            window.resizeTo 450, 520
+            ' Force le répertoire de travail vers le dossier du script (important pour le mode Admin)
+            Set objShell = CreateObject("WScript.Shell")
+            Set objFSO = CreateObject("Scripting.FileSystemObject")
+            strPath = Replace(HTAApp.commandLine, Chr(34), "")
+            strDir = objFSO.GetParentFolderName(strPath)
+            objShell.CurrentDirectory = strDir
+        End Sub
+
+        Sub RunInstall
+            Set objShell = CreateObject("WScript.Shell")
+            objShell.Run "cmd /k npm install"
+        End Sub
+
+        Sub RunBuildEXE
+            Set objShell = CreateObject("WScript.Shell")
+            objShell.Run "cmd /k npm run build && npm run electron:build"
+        End Sub
+
+        Sub RunBuildAPK
+            Set objShell = CreateObject("WScript.Shell")
+            objShell.Run "cmd /k npm run build && npx cap add android && npx cap sync"
+        End Sub
+
+        Sub RunClean
+            Set objShell = CreateObject("WScript.Shell")
+            objShell.Run "cmd /k rd /s /q dist && rd /s /q dist_electron"
+        End Sub
+    </script>
+</head>
+<body>
+    <h1>JARVISSE PROTOCOL</h1>
+    <div class="btn-container">
+        <button onclick="RunInstall()">INITIALISER LES SYSTEMES</button>
+        <button onclick="RunBuildEXE()">GENERER LOGICIEL EXE</button>
+        <button onclick="RunBuildAPK()">GENERER APPLICATION APK</button>
+        <button onclick="RunClean()">OUVRIR CONSOLE DE NETTOYAGE</button>
+        <button onclick="window.close()">FERMER LE SYSTEME</button>
+    </div>
+    <div class="footer">STARK INDUSTRIES - TACTICAL INTERFACE V1.0</div>
+</body>
+</html>

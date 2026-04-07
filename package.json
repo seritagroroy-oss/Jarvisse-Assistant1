@@ -1,0 +1,58 @@
+{
+  "name": "jarvisse-assistant",
+  "version": "1.0.0",
+  "description": "Assistant Personnel IA Tactique & Prototype Stark Industries",
+  "author": "Monsieur Roy",
+  "type": "module",
+  "main": "electron-main.cjs",
+  "scripts": {
+    "dev": "node ./node_modules/vite/bin/vite.js",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "start": "node api/index.js",
+    "electron:dev": "npx electron .",
+    "electron:build": "npx electron-builder build --win",
+    "android:sync": "npx cap sync",
+    "android:open": "npx cap open android"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "framer-motion": "^11.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "lucide-react": "^0.363.0",
+    "marked": "^11.1.1",
+    "mongoose": "^8.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "stripe": "^14.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/core": "^5.0.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.17",
+    "electron": "28.0.0",
+    "electron-builder": "^24.9.1",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.stark.jarvisse",
+    "productName": "Jarvisse Assistant",
+    "files": [
+      "dist/**/*",
+      "electron-main.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "public/icon.png"
+    }
+  }
+}

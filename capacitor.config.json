@@ -1,0 +1,6 @@
+{
+  "appId": "com.stark.jarvisse",
+  "appName": "Jarvisse Assistant",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

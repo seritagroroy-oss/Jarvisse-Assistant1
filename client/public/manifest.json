@@ -1,0 +1,16 @@
+{
+  "name": "Jarvisse Assistant",
+  "short_name": "Jarvisse",
+  "description": "IA Tactique & Contrôle Système par Monsieur Roy",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3233/3233512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
