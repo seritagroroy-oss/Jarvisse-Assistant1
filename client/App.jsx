@@ -79,6 +79,19 @@ export default function App() {
   useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
   useEffect(() => { loadingRef.current = loading; }, [loading]);
 
+  useEffect(() => {
+    const loadVoices = () => {
+      const availVoices = window.speechSynthesis.getVoices();
+      if (availVoices.length > 0) {
+        setVoices(availVoices);
+      }
+    };
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
   // --- BOUCLE PROACTIVE (JARVIS ANALYSE SEUL) ---
   useEffect(() => {
     if (!token) return;
@@ -577,11 +590,21 @@ export default function App() {
     if (!cleanText) return;
 
     try {
-      if (selectedVoice === "system") {
+      if (selectedVoice === "system" || selectedVoice.startsWith("system_")) {
         const utterance = new SpeechSynthesisUtterance(cleanText);
+        if (selectedVoice.startsWith("system_")) {
+          const vName = selectedVoice.replace("system_", "");
+          const synthV = window.speechSynthesis.getVoices().find(v => v.name === vName);
+          if (synthV) utterance.voice = synthV;
+        }
         utterance.rate = voiceSpeed;
         utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => { setIsSpeaking(false); isSpeakingRef.current = false; };
+        utterance.onend = () => { 
+          setIsSpeaking(false); 
+          isSpeakingRef.current = false; 
+          lastSpeechEndTimeRef.current = Date.now();
+          if (continuousMode) setTimeout(() => setIsListening(true), 300);
+        };
         window.speechSynthesis.speak(utterance);
         return;
       }
@@ -1323,19 +1346,27 @@ export default function App() {
 
                       <p className="text-[11px] font-black text-cyan-500 uppercase tracking-[0.3em] italic pl-2 flex items-center gap-2 mb-2"><Volume2 size={14}/> Processeur Vocal Elite</p>
                       <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} className="w-full bg-[#0a1525]/80 border border-cyan-500/20 rounded-[20px] px-5 py-4 outline-none focus:border-cyan-500 text-[11px] font-black text-cyan-400 uppercase tracking-widest cursor-pointer">
-                        <optgroup label="🌐 VOIX GOOGLE (GRATUIT & SANS CLÉ)">
-                          <option value="google">🌐 Google Assistant (Français)</option>
+                        <optgroup label="🌟 VOIX PREMIUM (TRÈS HUMAINES - CLÉ REQUISE)">
+                          <option value="onyx">▶ Onyx (Voix Stark Originale - Profonde)</option>
+                          <option value="nova">▶ Nova (Voix Féminine Douce & Humaine)</option>
+                          <option value="alloy">▶ Alloy (Voix Neutre Parfaite)</option>
+                          <option value="shimmer">▶ Shimmer (Voix Claire & Dynamique)</option>
+                          <option value="fable">▶ Fable (Voix Narrative)</option>
+                          <option value="echo">▶ Echo (Voix Grave & Assertive)</option>
                         </optgroup>
-                        <optgroup label="PROTOCOL PREMIUM (Nécessite Clé OpenAI)">
-                          <option value="onyx">Onyx (Stark Original)</option>
-                          <option value="alloy">Alloy (Neutre)</option>
-                          <option value="echo">Echo (Profond)</option>
-                          <option value="fable">Fable (Narratif)</option>
-                          <option value="nova">Nova (Énergique)</option>
-                          <option value="shimmer">Shimmer (Clair)</option>
+                        
+                        <optgroup label="☁️ VOIX GOOGLE CLOUD (GRATUITES & FLUIDES)">
+                          <option value="google">🌐 Google Web (Standard Rapide)</option>
+                          {voices.filter(v => v.name.includes("Google") || v.name.includes("Cloud")).map(v => (
+                            <option key={v.name} value={`system_${v.name}`}>☁️ {v.name} ({v.lang})</option>
+                          ))}
                         </optgroup>
-                        <optgroup label="SYSTÈME LOCAL">
-                          <option value="system">Voix Windows Standard (Robot)</option>
+
+                        <optgroup label="💻 VOIX SYSTÈME LOCALES (GRATUITES)">
+                          <option value="system">💻 Voix Windows (Par défaut)</option>
+                          {voices.filter(v => !v.name.includes("Google") && !v.name.includes("Cloud")).map(v => (
+                            <option key={v.name} value={`system_${v.name}`}>💻 {v.name.substring(0, 40)} ({v.lang})</option>
+                          ))}
                         </optgroup>
                       </select>
                     </div>
