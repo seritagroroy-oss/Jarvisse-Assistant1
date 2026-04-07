@@ -296,6 +296,33 @@ export default function App() {
     { id: "google/gemini-pro", name: "Gemini 1.0 Pro (Standard)" },
   ];
 
+  const premiumVoiceOptions = [
+    { id: "nova", name: "Nova", note: "Tres naturelle, douce et fluide" },
+    { id: "onyx", name: "Onyx", note: "Profonde, humaine, style Jarvisse" },
+    { id: "shimmer", name: "Shimmer", note: "Claire, expressive et vivante" },
+    { id: "alloy", name: "Alloy", note: "Neutre, propre pour usage quotidien" },
+    { id: "fable", name: "Fable", note: "Narrative, chaleureuse" },
+    { id: "echo", name: "Echo", note: "Grave et assuree" },
+  ];
+
+  const scoreNaturalVoice = (voice) => {
+    const name = `${voice.name || ""} ${voice.lang || ""}`.toLowerCase();
+    let score = 0;
+    if (name.includes("fr")) score += 6;
+    if (name.includes("female") || name.includes("male")) score += 2;
+    if (name.includes("natural")) score += 4;
+    if (name.includes("neural")) score += 5;
+    if (name.includes("wavenet")) score += 5;
+    if (name.includes("premium")) score += 3;
+    if (name.includes("enhanced")) score += 2;
+    if (name.includes("robot") || name.includes("compact")) score -= 3;
+    return score;
+  };
+
+  const sortedSystemVoices = [...voices].sort((a, b) => scoreNaturalVoice(b) - scoreNaturalVoice(a));
+  const googleSystemVoices = sortedSystemVoices.filter(v => v.name.includes("Google") || v.name.includes("Cloud"));
+  const freeSystemVoices = sortedSystemVoices.filter(v => !v.name.includes("Google") && !v.name.includes("Cloud"));
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -1346,26 +1373,25 @@ export default function App() {
 
                       <p className="text-[11px] font-black text-cyan-500 uppercase tracking-[0.3em] italic pl-2 flex items-center gap-2 mb-2"><Volume2 size={14}/> Processeur Vocal Elite</p>
                       <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} className="w-full bg-[#0a1525]/80 border border-cyan-500/20 rounded-[20px] px-5 py-4 outline-none focus:border-cyan-500 text-[11px] font-black text-cyan-400 uppercase tracking-widest cursor-pointer">
-                        <optgroup label="🌟 VOIX PREMIUM (TRÈS HUMAINES - CLÉ REQUISE)">
-                          <option value="onyx">▶ Onyx (Voix Stark Originale - Profonde)</option>
-                          <option value="nova">▶ Nova (Voix Féminine Douce & Humaine)</option>
-                          <option value="alloy">▶ Alloy (Voix Neutre Parfaite)</option>
-                          <option value="shimmer">▶ Shimmer (Voix Claire & Dynamique)</option>
-                          <option value="fable">▶ Fable (Voix Narrative)</option>
-                          <option value="echo">▶ Echo (Voix Grave & Assertive)</option>
+                        <optgroup label="PREMIUM (TRES HUMAINES - CLE REQUISE)">
+                          {premiumVoiceOptions.map((voice) => (
+                            <option key={voice.id} value={voice.id}>
+                              {`[PREMIUM] ${voice.name} - ${voice.note}`}
+                            </option>
+                          ))}
                         </optgroup>
                         
-                        <optgroup label="☁️ VOIX GOOGLE CLOUD (GRATUITES & FLUIDES)">
-                          <option value="google">🌐 Google Web (Standard Rapide)</option>
-                          {voices.filter(v => v.name.includes("Google") || v.name.includes("Cloud")).map(v => (
-                            <option key={v.name} value={`system_${v.name}`}>☁️ {v.name} ({v.lang})</option>
+                        <optgroup label="GRATUITES (LOCALES ET NATURELLES)">
+                          <option value="system">[GRATUIT] Voix systeme par defaut</option>
+                          {freeSystemVoices.map(v => (
+                            <option key={v.name} value={`system_${v.name}`}>{`[GRATUIT] ${v.name.substring(0, 40)} (${v.lang})`}</option>
                           ))}
                         </optgroup>
 
-                        <optgroup label="💻 VOIX SYSTÈME LOCALES (GRATUITES)">
-                          <option value="system">💻 Voix Windows (Par défaut)</option>
-                          {voices.filter(v => !v.name.includes("Google") && !v.name.includes("Cloud")).map(v => (
-                            <option key={v.name} value={`system_${v.name}`}>💻 {v.name.substring(0, 40)} ({v.lang})</option>
+                        <optgroup label="VOIX GOOGLE (WEB ET BROWSER)">
+                          <option value="google">[GOOGLE] Web TTS FR rapide</option>
+                          {googleSystemVoices.map(v => (
+                            <option key={v.name} value={`system_${v.name}`}>{`[GOOGLE] ${v.name} (${v.lang})`}</option>
                           ))}
                         </optgroup>
                       </select>
