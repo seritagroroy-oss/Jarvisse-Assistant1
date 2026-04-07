@@ -44,7 +44,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // --- ROUTES AUTH ---
-app.post("/register", async (req, res) => {
+app.post(["/register", "/api/register"], async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ error: "Données manquantes" });
@@ -55,7 +55,7 @@ app.post("/register", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post("/login", async (req, res) => {
+app.post(["/login", "/api/login"], async (req, res) => {
     try {
         const { email, password } = req.body;
         const cleanEmail = email.toLowerCase().trim();
@@ -67,7 +67,7 @@ app.post("/login", async (req, res) => {
 });
 
 // --- CHAT ROUTE ---
-app.post("/chat", authenticateToken, async (req, res) => {
+app.post(["/chat", "/api/chat"], authenticateToken, async (req, res) => {
     const { message = "", model = "multi", image, history = [], persona = "", geminiModelId, googleApiKey: clientGoogleKey } = req.body;
     
     const user = memoryUsers.find(u => u.email === req.user.email);
@@ -124,7 +124,7 @@ app.post("/chat", authenticateToken, async (req, res) => {
 
 // --- SHOP ROUTE ---
 // --- TTS ROUTE (STARK VOICE ENGINE) ---
-app.post("/tts", authenticateToken, async (req, res) => {
+app.post(["/tts", "/api/tts"], authenticateToken, async (req, res) => {
     const { text, voice = "onyx" } = req.body;
     const user = memoryUsers.find(u => u.email === req.user.email);
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
@@ -163,7 +163,7 @@ app.post("/tts", authenticateToken, async (req, res) => {
     }
 });
 
-app.post("/purchase", authenticateToken, async (req, res) => {
+app.post(["/purchase", "/api/purchase"], authenticateToken, async (req, res) => {
     const { packId } = req.body;
     const packs = {
         "pack_100": { credits: 100, price: 5 },
