@@ -17,4 +17,7 @@ build
 platforms
 www
 plugins
-jarvisse-native-builds/
+jarvisse-native-builds/*
+!jarvisse-native-builds/stark-ears/
+jarvisse-native-builds/stark-ears/*
+!jarvisse-native-builds/stark-ears/stark_ears.exe

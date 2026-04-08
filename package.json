@@ -10,6 +10,7 @@
     "build": "node ./node_modules/vite/bin/vite.js build",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "start": "node api/index.js",
+    "stark:build:exe": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build_stark_ears_exe.ps1",
     "electron:dev": "npx electron .",
     "electron:build": "npx electron-builder build --win",
     "android:sync": "npx cap sync",
@@ -51,6 +52,15 @@
       "agent_jarvis.js",
       "stark_ears.py",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "jarvisse-native-builds/stark-ears",
+        "to": "stark-ears",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "target": "portable",

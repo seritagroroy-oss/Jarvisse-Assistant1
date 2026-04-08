@@ -3,12 +3,15 @@ import cors from 'cors';
 import { exec, execSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const PORT = 3001;
 const STARK_EARS_PORT = 3002;
 const STARK_EARS_URL = `http://127.0.0.1:${STARK_EARS_PORT}`;
 let starkProcess = null;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(cors());
 app.use(express.json());
@@ -19,17 +22,51 @@ app.use((req, res, next) => {
 });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const exists = (p) => {
+  try { return fs.existsSync(p); } catch (_) { return false; }
+};
+
+const resolveStarkEarsLaunch = () => {
+  const resourceRoot = process.env.JARVISSE_RESOURCES_PATH || process.resourcesPath || '';
+  const explicitExe = process.env.JARVISSE_STARK_EARS_EXE || '';
+  const exeCandidates = [
+    explicitExe,
+    path.join(resourceRoot, 'stark-ears', 'stark_ears.exe'),
+    path.join(__dirname, 'jarvisse-native-builds', 'stark-ears', 'stark_ears.exe'),
+    path.join(process.cwd(), 'jarvisse-native-builds', 'stark-ears', 'stark_ears.exe')
+  ].filter(Boolean);
+
+  for (const exePath of exeCandidates) {
+    if (exists(exePath)) return { cmd: exePath, args: [], cwd: path.dirname(exePath), mode: 'exe' };
+  }
+
+  const pyCandidates = [
+    path.join(__dirname, 'stark_ears.py'),
+    path.join(process.cwd(), 'stark_ears.py')
+  ];
+  const scriptPath = pyCandidates.find(exists);
+  if (scriptPath) return { cmd: 'python', args: [scriptPath], cwd: path.dirname(scriptPath), mode: 'python' };
+  return null;
+};
 
 const startStarkEars = () => {
   if (starkProcess) return;
   try {
+    const launch = resolveStarkEarsLaunch();
+    if (!launch) {
+      console.error('[STARK_EARS] Aucun binaire .exe ni script stark_ears.py trouve.');
+      return;
+    }
+
     const env = { ...process.env, STARK_EARS_PORT: String(STARK_EARS_PORT) };
-    starkProcess = spawn('python', ['stark_ears.py'], {
-      cwd: process.cwd(),
+    starkProcess = spawn(launch.cmd, launch.args, {
+      cwd: launch.cwd,
       env,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true
     });
 
+    console.log(`[STARK_EARS] Demarrage mode: ${launch.mode} (${launch.cmd})`);
     starkProcess.stdout?.on('data', (d) => console.log(`[STARK_EARS] ${String(d).trim()}`));
     starkProcess.stderr?.on('data', (d) => console.error(`[STARK_EARS_ERR] ${String(d).trim()}`));
     starkProcess.on('exit', (code) => {

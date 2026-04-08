@@ -9,6 +9,10 @@ function startLocalAgent() {
     const agentPath = path.join(__dirname, "agent_jarvis.js");
     agentProcess = spawn(process.execPath, [agentPath], {
       cwd: __dirname,
+      env: {
+        ...process.env,
+        JARVISSE_RESOURCES_PATH: process.resourcesPath || "",
+      },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true
     });
