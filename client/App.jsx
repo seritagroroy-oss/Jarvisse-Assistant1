@@ -367,6 +367,61 @@ export default function App() {
     .filter(v => v?.name)
     .sort((a, b) => scoreGoogleCloudVoice(b) - scoreGoogleCloudVoice(a))
     .slice(0, 40);
+  const mobileFreeVoices = freeSystemVoices.slice(0, 20);
+  const mobileGoogleBrowserVoices = googleSystemVoices.slice(0, 12);
+  const mobileVoiceGroups = [
+    {
+      key: "premium",
+      title: "Premium",
+      subtitle: "Voix naturelles et haut de gamme",
+      items: premiumVoiceOptions.map((v) => ({
+        id: v.id,
+        name: v.name,
+        meta: v.note,
+        badge: "PREMIUM"
+      }))
+    },
+    {
+      key: "local",
+      title: "Locales Gratuites",
+      subtitle: "Voix disponibles sur votre appareil",
+      items: [
+        { id: "system", name: "Systeme par defaut", meta: "Rapide et stable", badge: "FREE" },
+        ...mobileFreeVoices.map((v) => ({
+          id: `system_${v.name}`,
+          name: v.name.substring(0, 34),
+          meta: v.lang || "system",
+          badge: "FREE"
+        }))
+      ]
+    },
+    {
+      key: "google",
+      title: "Google",
+      subtitle: "Web et Cloud TTS",
+      items: [
+        { id: "google", name: "Web TTS FR", meta: "Google Browser rapide", badge: "WEB" },
+        ...topGoogleCloudVoices.map((v) => {
+          const lang = (v.languageCodes && v.languageCodes[0]) || "fr-FR";
+          return {
+            id: `gcloud|${v.name}|${lang}`,
+            name: v.name,
+            meta: lang,
+            badge: "CLOUD"
+          };
+        }),
+        ...mobileGoogleBrowserVoices.map((v) => ({
+          id: `system_${v.name}`,
+          name: v.name.substring(0, 34),
+          meta: v.lang || "google",
+          badge: "WEB"
+        }))
+      ]
+    }
+  ];
+  const selectedVoiceMeta = mobileVoiceGroups
+    .flatMap((group) => group.items)
+    .find((item) => item.id === selectedVoice);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1498,37 +1553,95 @@ export default function App() {
                       </div>
 
                       <p className="text-[11px] font-black text-cyan-500 uppercase tracking-[0.3em] italic pl-2 flex items-center gap-2 mb-2"><Volume2 size={14}/> Processeur Vocal Elite</p>
-                      <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} className="w-full bg-[#0a1525]/80 border border-cyan-500/20 rounded-[20px] px-5 py-4 outline-none focus:border-cyan-500 text-[11px] font-black text-cyan-400 uppercase tracking-widest cursor-pointer">
-                        <optgroup label="PREMIUM (TRES HUMAINES - CLE REQUISE)">
-                          {premiumVoiceOptions.map((voice) => (
-                            <option key={voice.id} value={voice.id}>
-                              {`[PREMIUM] ${voice.name} - ${voice.note}`}
-                            </option>
-                          ))}
-                        </optgroup>
-                        
-                        <optgroup label="GRATUITES (LOCALES ET NATURELLES)">
-                          <option value="system">[GRATUIT] Voix systeme par defaut</option>
-                          {freeSystemVoices.map(v => (
-                            <option key={v.name} value={`system_${v.name}`}>{`[GRATUIT] ${v.name.substring(0, 40)} (${v.lang})`}</option>
-                          ))}
-                        </optgroup>
+                      {isMobile ? (
+                        <div className="space-y-3">
+                          <div className="rounded-2xl border border-cyan-500/25 bg-[#0a1525]/85 p-3 shadow-cyan">
+                            <p className="text-[9px] font-black tracking-[0.2em] uppercase text-cyan-500/70 mb-1">Voix Active</p>
+                            <p className="text-[13px] font-black uppercase tracking-[0.12em] text-cyan-300">
+                              {selectedVoiceMeta?.name || "Selection manuelle"}
+                            </p>
+                            <p className="text-[10px] text-cyan-100/60 mt-1 truncate">
+                              {selectedVoiceMeta?.meta || selectedVoice}
+                            </p>
+                          </div>
 
-                        <optgroup label="VOIX GOOGLE (WEB ET BROWSER)">
-                          <option value="google">[GOOGLE] Web TTS FR rapide</option>
-                          {topGoogleCloudVoices.map(v => {
-                            const lang = (v.languageCodes && v.languageCodes[0]) || "fr-FR";
-                            return (
-                              <option key={v.name} value={`gcloud|${v.name}|${lang}`}>
-                                {`[GOOGLE CLOUD] ${v.name} (${lang})`}
+                          <div className="max-h-[42dvh] overflow-y-auto no-scrollbar space-y-3 pr-0.5">
+                            {mobileVoiceGroups.map((group) => (
+                              <div key={group.key} className="rounded-2xl border border-cyan-500/15 bg-[#0a1525]/70 p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-300">{group.title}</p>
+                                    <p className="text-[9px] text-cyan-100/45">{group.subtitle}</p>
+                                  </div>
+                                  <span className="text-[9px] px-2 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-black">
+                                    {group.items.length}
+                                  </span>
+                                </div>
+                                <div className="space-y-2">
+                                  {group.items.map((item) => {
+                                    const active = selectedVoice === item.id;
+                                    return (
+                                      <button
+                                        key={item.id}
+                                        onClick={() => setSelectedVoice(item.id)}
+                                        className={`w-full text-left p-2.5 rounded-xl border transition-all ${
+                                          active
+                                            ? "bg-cyan-500/15 border-cyan-400/60 shadow-cyan"
+                                            : "bg-black/20 border-cyan-500/15 hover:border-cyan-400/35 hover:bg-cyan-500/5"
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-200 truncate">{item.name}</span>
+                                          <span className={`text-[8px] px-2 py-1 rounded-full border font-black ${
+                                            active
+                                              ? "bg-cyan-400 text-[#00131f] border-cyan-200"
+                                              : "bg-transparent text-cyan-500/70 border-cyan-500/30"
+                                          }`}>
+                                            {active ? "ACTIVE" : item.badge}
+                                          </span>
+                                        </div>
+                                        <p className="text-[9px] text-cyan-100/50 mt-1 truncate">{item.meta}</p>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} className="w-full bg-[#0a1525]/80 border border-cyan-500/20 rounded-[20px] px-5 py-4 outline-none focus:border-cyan-500 text-[11px] font-black text-cyan-400 uppercase tracking-widest cursor-pointer">
+                          <optgroup label="PREMIUM (TRES HUMAINES - CLE REQUISE)">
+                            {premiumVoiceOptions.map((voice) => (
+                              <option key={voice.id} value={voice.id}>
+                                {`[PREMIUM] ${voice.name} - ${voice.note}`}
                               </option>
-                            );
-                          })}
-                          {googleSystemVoices.map(v => (
-                            <option key={v.name} value={`system_${v.name}`}>{`[GOOGLE] ${v.name} (${v.lang})`}</option>
-                          ))}
-                        </optgroup>
-                      </select>
+                            ))}
+                          </optgroup>
+                          
+                          <optgroup label="GRATUITES (LOCALES ET NATURELLES)">
+                            <option value="system">[GRATUIT] Voix systeme par defaut</option>
+                            {freeSystemVoices.map(v => (
+                              <option key={v.name} value={`system_${v.name}`}>{`[GRATUIT] ${v.name.substring(0, 40)} (${v.lang})`}</option>
+                            ))}
+                          </optgroup>
+
+                          <optgroup label="VOIX GOOGLE (WEB ET BROWSER)">
+                            <option value="google">[GOOGLE] Web TTS FR rapide</option>
+                            {topGoogleCloudVoices.map(v => {
+                              const lang = (v.languageCodes && v.languageCodes[0]) || "fr-FR";
+                              return (
+                                <option key={v.name} value={`gcloud|${v.name}|${lang}`}>
+                                  {`[GOOGLE CLOUD] ${v.name} (${lang})`}
+                                </option>
+                              );
+                            })}
+                            {googleSystemVoices.map(v => (
+                              <option key={v.name} value={`system_${v.name}`}>{`[GOOGLE] ${v.name} (${v.lang})`}</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      )}
                     </div>
                     <div className="space-y-3 md:space-y-4">
                       <p className="text-[11px] font-black text-cyan-500 uppercase tracking-[0.3em] italic pl-2 flex items-center gap-2"><Zap size={14}/> Fréquence de Débit ({voiceSpeed}x)</p>
