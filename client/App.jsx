@@ -43,6 +43,12 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(parseFloat(localStorage.getItem("jarvis_voice_speed")) || 1.1);
   const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem("jarvis_selected_voice") || "onyx");
+  const [expressiveInterjections, setExpressiveInterjections] = useState(
+    localStorage.getItem("jarvis_expressive_interjections") !== "false"
+  );
+  const [isFallbackVoiceActive, setIsFallbackVoiceActive] = useState(
+    localStorage.getItem("jarvis_premium_fallback_active") === "true"
+  );
   const [voices, setVoices] = useState([]);
   const [googleCloudVoices, setGoogleCloudVoices] = useState([]);
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -77,9 +83,26 @@ export default function App() {
   const isSpeakingRef = useRef(false);
   const loadingRef = useRef(false);
   const lastSpeechEndTimeRef = useRef(0);
+  const premiumTtsFailedRef = useRef(localStorage.getItem("jarvis_premium_tts_failed") === "true");
 
   useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
   useEffect(() => { loadingRef.current = loading; }, [loading]);
+  useEffect(() => {
+    localStorage.setItem("jarvis_expressive_interjections", expressiveInterjections ? "true" : "false");
+  }, [expressiveInterjections]);
+  useEffect(() => {
+    const premium =
+      selectedVoice !== "system" &&
+      !selectedVoice.startsWith("system_") &&
+      selectedVoice !== "google" &&
+      !selectedVoice.startsWith("gcloud|");
+    if (premium) {
+      premiumTtsFailedRef.current = false;
+      setIsFallbackVoiceActive(false);
+      localStorage.setItem("jarvis_premium_tts_failed", "false");
+      localStorage.setItem("jarvis_premium_fallback_active", "false");
+    }
+  }, [selectedVoice]);
 
   useEffect(() => {
     const loadVoices = () => {
@@ -413,6 +436,11 @@ export default function App() {
   const selectedVoiceMeta = mobileVoiceGroups
     .flatMap((group) => group.items)
     .find((item) => item.id === selectedVoice);
+  const getBestFreeVoiceId = () => {
+    const bestFr = freeSystemVoices.find((v) => (v.lang || "").toLowerCase().startsWith("fr"));
+    if (bestFr?.name) return `system_${bestFr.name}`;
+    return "system";
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -699,6 +727,15 @@ export default function App() {
   const prepareSpeechText = (rawText) => {
     if (!rawText) return "";
 
+    const normalizedBase = String(rawText)
+      .replace(/\r?\n+/g, " ")
+      .replace(/\s+([!?;:,.])/g, "$1")
+      .replace(/([!?])(?=\S)/g, "$1 ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+    if (!expressiveInterjections) return normalizedBase;
+
     const interjectionMap = {
       "ah": "Ah",
       "oh": "Oh",
@@ -710,17 +747,12 @@ export default function App() {
       "h\u00e9las": "H\u00e9las"
     };
 
-    return String(rawText)
-      // Force une prosodie naturelle sur les interjections clés.
+    return normalizedBase
       .replace(/\b(Ah|Oh|Eh|A(?:i|\u00EF)e|Ouf|H(?:e|\u00E9)las)\b\s*!?/giu, (m) => {
         const key = m.replace("!", "").trim().toLowerCase();
         const canonical = interjectionMap[key] || m.trim();
         return `${canonical} ! `;
       })
-      .replace(/\r?\n+/g, " ")
-      .replace(/\s+([!?;:,.])/g, "$1")
-      .replace(/([!?])(?=\S)/g, "$1 ")
-      .replace(/\s{2,}/g, " ")
       .trim();
   };
 
@@ -739,13 +771,21 @@ export default function App() {
       .trim();
     
     if (!cleanText) return;
+    const fallbackVoiceId = getBestFreeVoiceId();
+    const isPremiumVoice =
+      selectedVoice !== "system" &&
+      !selectedVoice.startsWith("system_") &&
+      selectedVoice !== "google" &&
+      !selectedVoice.startsWith("gcloud|");
+    const effectiveVoice = (premiumTtsFailedRef.current && isPremiumVoice) ? fallbackVoiceId : selectedVoice;
+    let usedPremiumTts = false;
 
     try {
-      if (selectedVoice === "system" || selectedVoice.startsWith("system_")) {
+      if (effectiveVoice === "system" || effectiveVoice.startsWith("system_")) {
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = "fr-FR";
-        if (selectedVoice.startsWith("system_")) {
-          const vName = selectedVoice.replace("system_", "");
+        if (effectiveVoice.startsWith("system_")) {
+          const vName = effectiveVoice.replace("system_", "");
           const synthV = window.speechSynthesis.getVoices().find(v => v.name === vName);
           if (synthV) utterance.voice = synthV;
         }
@@ -762,7 +802,7 @@ export default function App() {
       }
 
       // Voix gratuite Google Translate
-      if (selectedVoice === "google") {
+      if (effectiveVoice === "google") {
         isSpeakingRef.current = true;
         setIsSpeaking(true);
         // Découpage intelligent pour respecter la limite de 200 char Google
@@ -800,8 +840,8 @@ export default function App() {
       }
 
       // Voix Google Cloud premium (Neural2/Wavenet/Studio)
-      if (selectedVoice.startsWith("gcloud|")) {
-        const parts = selectedVoice.split("|");
+      if (effectiveVoice.startsWith("gcloud|")) {
+        const parts = effectiveVoice.split("|");
         const voiceName = parts[1];
         const languageCode = parts[2] || "fr-FR";
 
@@ -842,10 +882,11 @@ export default function App() {
       }
 
       // Tentative de lecture Premium (OpenAI TTS)
+      usedPremiumTts = true;
       const res = await fetch(`${backendUrl}/api/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ text: cleanText, voice: selectedVoice })
+        body: JSON.stringify({ text: cleanText, voice: effectiveVoice })
       });
 
       if (!res.ok) {
@@ -877,7 +918,14 @@ export default function App() {
     } catch (e) {
       // Fallback : Moteur Local (Browser)
       console.error("Erreur Premium TTS:", e);
-      alert(`⚠️ ÉCHEC MOTEUR VOCAL PREMIUM ⚠️\n\n${e.message}\n\nLe système repasse temporairement sur la voix de secours (robot) de Windows.`);
+      if (usedPremiumTts) {
+        premiumTtsFailedRef.current = true;
+        setIsFallbackVoiceActive(true);
+        setSelectedVoice(fallbackVoiceId);
+        localStorage.setItem("jarvis_premium_tts_failed", "true");
+        localStorage.setItem("jarvis_premium_fallback_active", "true");
+        localStorage.setItem("jarvis_selected_voice", fallbackVoiceId);
+      }
       
       const synth = window.speechSynthesis;
       synth.cancel(); 
@@ -1665,6 +1713,25 @@ export default function App() {
                       )}
                     </div>
                     <div className="space-y-3 md:space-y-4">
+                      <div className="p-3 md:p-4 bg-[#0a1525]/80 border border-cyan-500/20 rounded-[24px]">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className="text-[11px] font-black text-cyan-500 uppercase tracking-[0.2em] flex items-center gap-2"><Sparkles size={14}/> Interjections Expressives</p>
+                            <p className="text-[8px] md:text-[9px] text-cyan-700 font-bold uppercase tracking-widest">Ah!, Ouf!, Eh! avec intonation naturelle.</p>
+                          </div>
+                          <button
+                            onClick={() => setExpressiveInterjections((v) => !v)}
+                            className={`w-12 h-6 md:w-14 md:h-7 rounded-full transition-all relative shrink-0 ${expressiveInterjections ? "bg-cyan-500 shadow-cyan border-none" : "bg-[#0a1525] border border-cyan-500/30"}`}
+                          >
+                            <div className={`absolute top-1 left-1 w-4 h-4 md:w-5 md:h-5 rounded-full bg-white transition-transform ${expressiveInterjections ? "translate-x-6 md:translate-x-7" : ""}`} />
+                          </button>
+                        </div>
+                        {isFallbackVoiceActive && (
+                          <div className="mt-3 text-[9px] px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-300 font-black uppercase tracking-[0.15em]">
+                            Voix de secours active
+                          </div>
+                        )}
+                      </div>
                       <p className="text-[11px] font-black text-cyan-500 uppercase tracking-[0.3em] italic pl-2 flex items-center gap-2"><Zap size={14}/> Fréquence de Débit ({voiceSpeed}x)</p>
                       <input type="range" min="0.5" max="2.0" step="0.1" value={voiceSpeed} onChange={(e) => setVoiceSpeed(parseFloat(e.target.value))} className="w-full accent-cyan-500 h-2 bg-cyan-900/30 rounded-lg appearance-none cursor-pointer mt-4" />
                     </div>
@@ -1684,6 +1751,7 @@ export default function App() {
                     localStorage.setItem("jarvis_user_name", userName); 
                     localStorage.setItem("jarvis_voice_speed", voiceSpeed);
                     localStorage.setItem("jarvis_selected_voice", selectedVoice);
+                    localStorage.setItem("jarvis_expressive_interjections", expressiveInterjections ? "true" : "false");
                     setShowSettings(false); 
                   }} className="w-full bg-cyan-500 py-4 md:py-6 rounded-[24px] md:rounded-[32px] font-black uppercase tracking-[0.4em] text-[11px] md:text-[13px] shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-3 hover:bg-cyan-400 transition-all text-gray-950">
                     <Save size={18}/> SYNCHRONISER_S SYSTÈME
