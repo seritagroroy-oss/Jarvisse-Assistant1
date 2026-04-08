@@ -161,17 +161,8 @@ export default function App() {
     return () => clearInterval(proactiveLoop);
   }, [token, lastProactiveCheck, isVoiceOn]);
 
-  // Check local agent availability
+  // PWA install prompt
   useEffect(() => {
-    // --- ENREGISTREMENT PWA SERVICE WORKER ---
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-          console.log('STARK_SW_ACTIVE', reg);
-        }).catch(err => console.log('SW_FAILURE', err));
-      });
-    }
-
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
