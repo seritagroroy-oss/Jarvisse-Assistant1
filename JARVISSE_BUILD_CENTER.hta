@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=9" />
+  <title>Jarvisse Build Center</title>
+  <hta:application
+    id="BuildCenter"
+    applicationname="JarvisseBuildCenter"
+    border="thin"
+    borderstyle="normal"
+    caption="yes"
+    contextmenu="no"
+    innerborder="no"
+    maximizebutton="no"
+    minimizebutton="yes"
+    navigable="no"
+    scroll="no"
+    selection="no"
+    showintaskbar="yes"
+    singleinstance="yes"
+    sysmenu="yes"
+    windowstate="normal"
+  />
+  <style>
+    body {
+      margin: 0;
+      padding: 18px;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: #e8f1ff;
+      background: radial-gradient(circle at top, #1c2d58 0%, #0b1224 55%, #070b16 100%);
+    }
+
+    .panel {
+      border: 1px solid #2f4f8f;
+      border-radius: 14px;
+      background: rgba(12, 20, 40, 0.85);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: #9fc4ff;
+    }
+
+    .sub {
+      margin: 0 0 14px 0;
+      font-size: 12px;
+      color: #bed4ff;
+      opacity: 0.9;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    button {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #3f67bb;
+      background: linear-gradient(180deg, #183472 0%, #12295e 100%);
+      color: #f4f8ff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: linear-gradient(180deg, #224896 0%, #173777 100%);
+    }
+
+    .small {
+      font-size: 11px;
+      color: #b6cbf5;
+      margin-top: 6px;
+      opacity: 0.9;
+    }
+
+    .status {
+      margin-top: 12px;
+      border-radius: 10px;
+      border: 1px solid #294988;
+      background: rgba(16, 28, 56, 0.9);
+      padding: 10px;
+      font-size: 12px;
+      color: #d9e8ff;
+      min-height: 36px;
+      line-height: 1.4;
+    }
+  </style>
+  <script language="javascript">
+    function shell() {
+      return new ActiveXObject("WScript.Shell");
+    }
+
+    function fso() {
+      return new ActiveXObject("Scripting.FileSystemObject");
+    }
+
+    function setStatus(text) {
+      document.getElementById("status").innerText = text;
+    }
+
+    function initWorkDir() {
+      var sh = shell();
+      var fs = fso();
+      var cmd = BuildCenter.commandLine.replace(/"/g, "");
+      var dir = fs.GetParentFolderName(cmd);
+      sh.CurrentDirectory = dir;
+      setStatus("Repertoire actif: " + dir);
+    }
+
+    function runCommand(command, statusText) {
+      var sh = shell();
+      setStatus(statusText);
+      sh.Run('cmd /k "' + command + '"', 1, false);
+    }
+
+    function installDeps() {
+      runCommand("npm install", "Installation des dependances npm...");
+    }
+
+    function buildExe() {
+      runCommand("npm run build && npm run electron:build", "Compilation EXE en cours...");
+    }
+
+    function syncAndroid() {
+      runCommand("npm run build && npm run android:sync", "Preparation Android (sync) en cours...");
+    }
+
+    function openAndroidStudio() {
+      runCommand("npm run android:open", "Ouverture Android Studio...");
+    }
+
+    function buildAll() {
+      runCommand("npm run build && npm run electron:build && npm run android:sync", "Pipeline complet EXE + APK en cours...");
+    }
+
+    function cleanDist() {
+      runCommand('if exist dist rd /s /q dist & if exist dist_electron rd /s /q dist_electron', "Nettoyage des dossiers de build...");
+    }
+
+    window.onload = function () {
+      window.resizeTo(560, 620);
+      initWorkDir();
+    };
+  </script>
+</head>
+<body>
+  <div class="panel">
+    <h1>JARVISSE BUILD CENTER</h1>
+    <div class="sub">Interface rapide pour compiler EXE et preparer APK.</div>
+
+    <div class="grid">
+      <button onclick="installDeps()">1) Installer/mettre a jour les dependances</button>
+      <button onclick="buildExe()">2) Compiler la version Windows EXE</button>
+      <button onclick="syncAndroid()">3) Preparer Android (APK via Android Studio)</button>
+      <button onclick="openAndroidStudio()">4) Ouvrir le projet Android</button>
+      <button onclick="buildAll()">5) Lancer le pipeline complet EXE + APK</button>
+      <button onclick="cleanDist()">6) Nettoyer les dossiers dist</button>
+      <button onclick="window.close()">Fermer</button>
+    </div>
+
+    <div class="small">
+      APK: la generation finale se fait dans Android Studio (Build > Generate Signed Bundle/APK).
+    </div>
+    <div id="status" class="status">Pret.</div>
+  </div>
+</body>
+</html>
