@@ -3,6 +3,7 @@ from flask_cors import CORS
 import speech_recognition as sr
 import threading
 import logging
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -78,8 +79,9 @@ def command():
     return jsonify({"status": "no change"}), 200
 
 if __name__ == "__main__":
+    port = int(os.getenv("STARK_EARS_PORT", "3002"))
     print("="*50)
     print("   STARK EARS (PYTHON BACKGROUND AGENT) LANCE")
-    print("   Port : 3001 | Modèle : Google STT Gratuit ")
+    print(f"   Port : {port} | Mod??le : Google STT Gratuit ")
     print("="*50)
-    app.run(port=3001, debug=False)
+    app.run(port=port, debug=False)

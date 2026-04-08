@@ -48,6 +48,8 @@
     "files": [
       "dist/**/*",
       "electron-main.cjs",
+      "agent_jarvis.js",
+      "stark_ears.py",
       "package.json"
     ],
     "win": {

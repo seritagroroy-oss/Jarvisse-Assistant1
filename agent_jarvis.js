@@ -1,19 +1,91 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
-import { exec, execSync } from 'child_process';
+import { exec, execSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
 const app = express();
 const PORT = 3001;
+const STARK_EARS_PORT = 3002;
+const STARK_EARS_URL = `http://127.0.0.1:${STARK_EARS_PORT}`;
+let starkProcess = null;
 
 app.use(cors());
 app.use(express.json());
 
-// Log des requêtes
 app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleTimeString()}] Commande reçue:`, req.body);
+  console.log(`[${new Date().toLocaleTimeString()}] Requete: ${req.method} ${req.path}`);
   next();
+});
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const startStarkEars = () => {
+  if (starkProcess) return;
+  try {
+    const env = { ...process.env, STARK_EARS_PORT: String(STARK_EARS_PORT) };
+    starkProcess = spawn('python', ['stark_ears.py'], {
+      cwd: process.cwd(),
+      env,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    starkProcess.stdout?.on('data', (d) => console.log(`[STARK_EARS] ${String(d).trim()}`));
+    starkProcess.stderr?.on('data', (d) => console.error(`[STARK_EARS_ERR] ${String(d).trim()}`));
+    starkProcess.on('exit', (code) => {
+      console.log(`[STARK_EARS] Process exited with code ${code}`);
+      starkProcess = null;
+    });
+  } catch (e) {
+    console.error('[STARK_EARS] Start failed:', e.message);
+  }
+};
+
+const ensureStarkEarsReady = async () => {
+  startStarkEars();
+  for (let i = 0; i < 20; i++) {
+    try {
+      const r = await fetch(`${STARK_EARS_URL}/`);
+      if (r.ok) return true;
+    } catch (_) {}
+    await sleep(250);
+  }
+  return false;
+};
+
+app.get('/', async (req, res) => {
+  const ok = await ensureStarkEarsReady();
+  res.status(ok ? 200 : 503).send({
+    status: ok ? 'Agent JARVISSE + STARK EARS en ligne' : 'Agent en ligne, STARK EARS indisponible'
+  });
+});
+
+app.get('/transcript', async (req, res) => {
+  const ready = await ensureStarkEarsReady();
+  if (!ready) return res.status(503).send({ text: '', error: 'STARK_EARS_OFFLINE' });
+  try {
+    const r = await fetch(`${STARK_EARS_URL}/transcript`);
+    const data = await r.json().catch(() => ({ text: '' }));
+    return res.status(r.ok ? 200 : 502).send(data);
+  } catch (e) {
+    return res.status(502).send({ text: '', error: 'TRANSCRIPT_PROXY_FAILED' });
+  }
+});
+
+app.post('/command', async (req, res) => {
+  const ready = await ensureStarkEarsReady();
+  if (!ready) return res.status(503).send({ status: 'failed', error: 'STARK_EARS_OFFLINE' });
+  try {
+    const r = await fetch(`${STARK_EARS_URL}/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body || {})
+    });
+    const data = await r.json().catch(() => ({ status: 'no change' }));
+    return res.status(r.ok ? 200 : 502).send(data);
+  } catch (e) {
+    return res.status(502).send({ status: 'failed', error: 'COMMAND_PROXY_FAILED' });
+  }
 });
 
 app.post('/execute', (req, res) => {
@@ -30,17 +102,16 @@ app.post('/execute', (req, res) => {
       command = `start "" "${value}"`;
       break;
     case 'open_app':
-      // Tente de lancer le processus (ex: chrome, notepad, photoshop)
       command = `start "" "${value}"`;
       break;
     case 'search':
       command = `start "" "https://www.google.com/search?q=${encodeURIComponent(value)}"`;
       break;
     case 'system':
-      if (value === 'shutdown') command = 'shutdown /s /t 60'; 
+      if (value === 'shutdown') command = 'shutdown /s /t 60';
       if (value === 'cancel_shutdown') command = 'shutdown /a';
       break;
-    case 'capture_screen':
+    case 'capture_screen': {
       const screenshotPath = path.join(process.cwd(), 'screenshot.png');
       const powershellCommand = `
         Add-Type -AssemblyName System.Windows.Forms;
@@ -57,17 +128,17 @@ app.post('/execute', (req, res) => {
         $Graphic.Dispose();
         $Bitmap.Dispose();
       `;
-      
+
       try {
         execSync(`powershell -Command "${powershellCommand.replace(/\n/g, ' ')}"`);
         const imageBase64 = fs.readFileSync(screenshotPath, { encoding: 'base64' });
-        fs.unlinkSync(screenshotPath); // Ménage après capture
+        fs.unlinkSync(screenshotPath);
         return res.send({ status: 'success', image: `data:image/png;base64,${imageBase64}` });
       } catch (err) {
-        console.error("Erreur Capture:", err);
-        return res.status(500).send({ error: "Échec de la capture d'écran" });
+        console.error('Erreur Capture:', err);
+        return res.status(500).send({ error: "Echec de la capture d'ecran" });
       }
-      break;
+    }
     case 'open_folder':
       command = `explorer "${value}"`;
       break;
@@ -78,22 +149,26 @@ app.post('/execute', (req, res) => {
   if (command) {
     exec(command, (error) => {
       if (error) {
-        console.error(`Erreur d'exécution: ${error}`);
-        return res.status(500).send({ error: 'Erreur système lors de l\'exécution' });
+        console.error(`Erreur d'execution: ${error}`);
+        return res.status(500).send({ error: "Erreur systeme lors de l'execution" });
       }
-      res.send({ status: 'success', message: `Exécution de: ${action}` });
+      res.send({ status: 'success', message: `Execution de: ${action}` });
     });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`
-  ===========================================
-     AGENT JARVISSE - SYSTÈME ACTIF
-  ===========================================
-  Écoute sur : http://localhost:${PORT}
-  
-  Statut : PRÊT POUR LES ORDRES (WINDOWS)
-  ===========================================
-  `);
+app.listen(PORT, async () => {
+  console.log(`\n===========================================\n AGENT JARVISSE - SYSTEME ACTIF\n===========================================\n Ecoute sur : http://localhost:${PORT}\n===========================================\n`);
+  await ensureStarkEarsReady();
 });
+
+const shutdown = () => {
+  if (starkProcess) {
+    starkProcess.kill();
+    starkProcess = null;
+  }
+  process.exit(0);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
