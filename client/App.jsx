@@ -696,17 +696,46 @@ export default function App() {
     }
   };
 
+  const prepareSpeechText = (rawText) => {
+    if (!rawText) return "";
+
+    const interjectionMap = {
+      "ah": "Ah",
+      "oh": "Oh",
+      "eh": "Eh",
+      "aie": "A\u00efe",
+      "a\u00efe": "A\u00efe",
+      "ouf": "Ouf",
+      "helas": "H\u00e9las",
+      "h\u00e9las": "H\u00e9las"
+    };
+
+    return String(rawText)
+      // Force une prosodie naturelle sur les interjections clés.
+      .replace(/\b(Ah|Oh|Eh|A(?:i|\u00EF)e|Ouf|H(?:e|\u00E9)las)\b\s*!?/giu, (m) => {
+        const key = m.replace("!", "").trim().toLowerCase();
+        const canonical = interjectionMap[key] || m.trim();
+        return `${canonical} ! `;
+      })
+      .replace(/\r?\n+/g, " ")
+      .replace(/\s+([!?;:,.])/g, "$1")
+      .replace(/([!?])(?=\S)/g, "$1 ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  };
+
   const speak = async (text) => {
     if ((!isVoiceOn && !continuousMode) || !text) return;
     
     // VERROU INSTANTANÉ : Jarvis parle, le micro doit ignorer tout le reste
     isSpeakingRef.current = true;
     setIsSpeaking(true);
-    const cleanText = text
+    const cleanText = prepareSpeechText(text)
       .replace(/[\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}]/gu, "")
       .replace(/[\*\#\_\~\`\>\[\]\(\)]/g, "")
-      .replace(/[→⇒⇨➔➲➤➧➨➚➘➴➷➸➼➽⚡🔥✨🚀🧠💡🎯✅🛡️]/gu, "") 
-      .replace(/[•●▪▪■‣◦]/g, "")
+      .replace(/\s+([!?;:,.])/g, "$1")
+      .replace(/([!?])(?=\S)/g, "$1 ")
+      .replace(/\s{2,}/g, " ")
       .trim();
     
     if (!cleanText) return;
@@ -714,6 +743,7 @@ export default function App() {
     try {
       if (selectedVoice === "system" || selectedVoice.startsWith("system_")) {
         const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = "fr-FR";
         if (selectedVoice.startsWith("system_")) {
           const vName = selectedVoice.replace("system_", "");
           const synthV = window.speechSynthesis.getVoices().find(v => v.name === vName);
