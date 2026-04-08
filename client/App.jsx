@@ -44,6 +44,7 @@ export default function App() {
   const [voiceSpeed, setVoiceSpeed] = useState(parseFloat(localStorage.getItem("jarvis_voice_speed")) || 1.1);
   const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem("jarvis_selected_voice") || "onyx");
   const [voices, setVoices] = useState([]);
+  const [googleCloudVoices, setGoogleCloudVoices] = useState([]);
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [user, setUser] = useState({ 
     email: localStorage.getItem("email"), 
@@ -91,6 +92,32 @@ export default function App() {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
   }, []);
+
+  useEffect(() => {
+    const loadGoogleCloudVoices = async () => {
+      if (!token || !googleKey) {
+        setGoogleCloudVoices([]);
+        return;
+      }
+      try {
+        const res = await fetch(`${backendUrl}/api/google-voices`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ googleApiKey: googleKey })
+        });
+        const data = await res.json().catch(() => ({ voices: [] }));
+        if (!res.ok || data.error) {
+          setGoogleCloudVoices([]);
+          return;
+        }
+        setGoogleCloudVoices(data.voices || []);
+      } catch (err) {
+        setGoogleCloudVoices([]);
+      }
+    };
+
+    loadGoogleCloudVoices();
+  }, [token, googleKey]);
 
   // --- BOUCLE PROACTIVE (JARVIS ANALYSE SEUL) ---
   useEffect(() => {
@@ -319,9 +346,26 @@ export default function App() {
     return score;
   };
 
+  const scoreGoogleCloudVoice = (voice) => {
+    const name = (voice?.name || "").toLowerCase();
+    let score = 0;
+    if (name.includes("fr-")) score += 8;
+    if (name.includes("studio")) score += 10;
+    if (name.includes("neural2")) score += 9;
+    if (name.includes("wavenet")) score += 7;
+    if (name.includes("chirp")) score += 6;
+    if (name.includes("polyglot")) score += 5;
+    if (name.includes("standard")) score -= 3;
+    return score;
+  };
+
   const sortedSystemVoices = [...voices].sort((a, b) => scoreNaturalVoice(b) - scoreNaturalVoice(a));
   const googleSystemVoices = sortedSystemVoices.filter(v => v.name.includes("Google") || v.name.includes("Cloud"));
   const freeSystemVoices = sortedSystemVoices.filter(v => !v.name.includes("Google") && !v.name.includes("Cloud"));
+  const topGoogleCloudVoices = [...googleCloudVoices]
+    .filter(v => v?.name)
+    .sort((a, b) => scoreGoogleCloudVoice(b) - scoreGoogleCloudVoice(a))
+    .slice(0, 40);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -671,6 +715,48 @@ export default function App() {
           audio.play();
         };
         playNextChunk();
+        return;
+      }
+
+      // Voix Google Cloud premium (Neural2/Wavenet/Studio)
+      if (selectedVoice.startsWith("gcloud|")) {
+        const parts = selectedVoice.split("|");
+        const voiceName = parts[1];
+        const languageCode = parts[2] || "fr-FR";
+
+        const res = await fetch(`${backendUrl}/api/tts-google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({
+            text: cleanText,
+            voiceName,
+            languageCode,
+            speakingRate: voiceSpeed,
+            googleApiKey: googleKey
+          })
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: "Google TTS indisponible" }));
+          throw new Error(errorData.detail || errorData.error || "Moteur Google Cloud indisponible");
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.playbackRate = 1.0;
+
+        audio.onplay = () => setIsSpeaking(true);
+        audio.onended = () => {
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          lastSpeechEndTimeRef.current = Date.now();
+          URL.revokeObjectURL(url);
+          if (continuousMode) setTimeout(() => setIsListening(true), 300);
+        };
+
+        audio.play();
+        setUser(prev => ({ ...prev, credits: Math.max(0, prev.credits - 1) }));
         return;
       }
 
@@ -1390,6 +1476,14 @@ export default function App() {
 
                         <optgroup label="VOIX GOOGLE (WEB ET BROWSER)">
                           <option value="google">[GOOGLE] Web TTS FR rapide</option>
+                          {topGoogleCloudVoices.map(v => {
+                            const lang = (v.languageCodes && v.languageCodes[0]) || "fr-FR";
+                            return (
+                              <option key={v.name} value={`gcloud|${v.name}|${lang}`}>
+                                {`[GOOGLE CLOUD] ${v.name} (${lang})`}
+                              </option>
+                            );
+                          })}
                           {googleSystemVoices.map(v => (
                             <option key={v.name} value={`system_${v.name}`}>{`[GOOGLE] ${v.name} (${v.lang})`}</option>
                           ))}

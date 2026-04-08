@@ -163,6 +163,80 @@ app.post(["/tts", "/api/tts"], authenticateToken, async (req, res) => {
     }
 });
 
+app.post(["/google-voices", "/api/google-voices"], authenticateToken, async (req, res) => {
+    const clientGoogleKey = req.body?.googleApiKey;
+    const activeGoogleKey = GOOGLE_API_KEY || clientGoogleKey;
+
+    if (!activeGoogleKey) {
+        return res.status(400).json({ error: "Google API key manquante pour recuperer les voix Cloud." });
+    }
+
+    try {
+        const response = await axios.get(`https://texttospeech.googleapis.com/v1/voices?key=${activeGoogleKey}`);
+        const voices = response.data?.voices || [];
+        const formatted = voices.map((v) => ({
+            name: v.name,
+            languageCodes: v.languageCodes || [],
+            ssmlGender: v.ssmlGender || "SSML_VOICE_GENDER_UNSPECIFIED",
+            naturalSampleRateHertz: v.naturalSampleRateHertz || null
+        }));
+        res.json({ voices: formatted });
+    } catch (err) {
+        const detail = err.response?.data || err.message;
+        console.error("Google voices fetch error:", detail);
+        res.status(500).json({ error: "Impossible de recuperer les voix Google Cloud.", detail });
+    }
+});
+
+app.post(["/tts-google", "/api/tts-google"], authenticateToken, async (req, res) => {
+    const { text, voiceName, languageCode, speakingRate = 1.0, googleApiKey: clientGoogleKey } = req.body || {};
+    const user = memoryUsers.find(u => u.email === req.user.email);
+    const activeGoogleKey = GOOGLE_API_KEY || clientGoogleKey;
+
+    if (!text || !voiceName) {
+        return res.status(400).json({ error: "Texte ou voix Google manquante." });
+    }
+    if (!activeGoogleKey) {
+        return res.status(400).json({ error: "Google API key manquante pour le TTS Google Cloud." });
+    }
+    if (user && user.credits < PRICING.tts) {
+        return res.status(403).json({ error: "Credits insuffisants pour le moteur vocal." });
+    }
+
+    const inferredLanguage = languageCode || (voiceName.includes("-") ? voiceName.split("-").slice(0, 2).join("-") : "fr-FR");
+
+    try {
+        const response = await axios.post(
+            `https://texttospeech.googleapis.com/v1/text:synthesize?key=${activeGoogleKey}`,
+            {
+                input: { text },
+                voice: { languageCode: inferredLanguage, name: voiceName },
+                audioConfig: {
+                    audioEncoding: "MP3",
+                    speakingRate: Math.max(0.5, Math.min(2.0, Number(speakingRate) || 1.0))
+                }
+            },
+            { headers: { "Content-Type": "application/json" } }
+        );
+
+        const base64Audio = response.data?.audioContent;
+        if (!base64Audio) {
+            throw new Error("Aucun contenu audio retourne par Google Cloud.");
+        }
+
+        if (user) user.credits -= PRICING.tts;
+
+        const audioBuffer = Buffer.from(base64Audio, "base64");
+        res.set("Content-Type", "audio/mpeg");
+        res.set("Content-Length", audioBuffer.length);
+        res.send(audioBuffer);
+    } catch (err) {
+        const detail = err.response?.data || err.message;
+        console.error("Google TTS error:", detail);
+        res.status(500).json({ error: "Echec du moteur vocal Google Cloud.", detail });
+    }
+});
+
 app.post(["/purchase", "/api/purchase"], authenticateToken, async (req, res) => {
     const { packId } = req.body;
     const packs = {
