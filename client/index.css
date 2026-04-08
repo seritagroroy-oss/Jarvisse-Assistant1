@@ -20,6 +20,11 @@ html, body, #root {
   background-color: var(--jarvis-dark) !important;
 }
 
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 body {
   font-family: 'Inter', 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -34,13 +39,13 @@ body {
 body::before {
   content: " ";
   display: block;
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
   right: 0;
   background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 100;
+  z-index: 0;
   background-size: 100% 4px, 3px 100%;
   pointer-events: none;
   opacity: 0.15;
@@ -202,4 +207,3 @@ body::before {
     margin-bottom: 0.75rem;
   }
 }
-

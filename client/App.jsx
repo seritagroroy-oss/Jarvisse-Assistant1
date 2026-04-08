@@ -68,6 +68,7 @@ export default function App() {
   const [isVoiceOn, setIsVoiceOn] = useState(true);
   const [attachedImage, setAttachedImage] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isSmallMobile, setIsSmallMobile] = useState(window.innerWidth < 420);
   const [showShop, setShowShop] = useState(false);
   const [userPlan, setUserPlan] = useState(localStorage.getItem("user_plan") || "FREE");
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -372,7 +373,11 @@ export default function App() {
   };
 
   useEffect(() => { 
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      setIsSmallMobile(window.innerWidth < 420);
+    };
+    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -1029,10 +1034,20 @@ export default function App() {
                 ))
               )}
             </div>
-            <div className="pt-8 border-t border-cyan-500/10">
+            <div className="pt-8 border-t border-cyan-500/10 space-y-3">
               <button onClick={() => { setShowSettings(true); setSidebarOpen(false); }} className="w-full text-left text-[11px] font-black uppercase tracking-[0.3em] text-cyan-500 hover:text-cyan-300 flex items-center gap-4 py-3">
                 <Settings size={18}/> RÉGLAGES_PROTOCOLE
               </button>
+              {isMobile && token && (
+                <>
+                  <button onClick={installApp} className="w-full py-3 bg-blue-500/10 border border-blue-500/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 hover:bg-blue-500/20 transition-all flex items-center justify-center gap-3">
+                    <Save size={15} /> INSTALLER_APP
+                  </button>
+                  <button onClick={() => logout()} className="w-full py-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-red-400 hover:bg-red-500/20 transition-all flex items-center justify-center gap-3">
+                    <LogOut size={15} /> DECONNEXION
+                  </button>
+                </>
+              )}
             </div>
           </motion.aside>
         )}
@@ -1043,14 +1058,20 @@ export default function App() {
         <div className="fixed top-[-5%] left-[-5%] w-[30%] h-[30%] bg-blue-600/5 rounded-full blur-[100px] pointer-events-none"></div>
         
         {/* Header HUD - System Status */}
-        <header className="h-16 md:h-20 flex items-center justify-between px-4 md:px-6 border-b border-cyan-500/10 bg-gray-950/60 backdrop-blur-3xl shrink-0 z-50">
-          <div className="flex items-center gap-3 md:gap-6">
-            <button onClick={() => setSidebarOpen(true)} className="p-2.5 md:p-3 hover:bg-cyan-500/10 rounded-xl text-cyan-400 transition-all border border-cyan-500/20 shadow-cyan">
+        <header
+          className="flex items-center justify-between px-3 md:px-6 border-b border-cyan-500/10 bg-gray-950/80 backdrop-blur-3xl shrink-0 z-[70]"
+          style={{
+            minHeight: isMobile ? "calc(4rem + env(safe-area-inset-top))" : "5rem",
+            paddingTop: isMobile ? "env(safe-area-inset-top)" : "0px"
+          }}
+        >
+          <div className="flex items-center gap-2 md:gap-6 min-w-0 flex-1">
+            <button onClick={() => setSidebarOpen(true)} className="p-2.5 md:p-3 hover:bg-cyan-500/10 rounded-xl text-cyan-400 transition-all border border-cyan-500/20 shadow-cyan shrink-0" aria-label="Ouvrir le menu">
               <Menu size={isMobile ? 18 : 20} />
             </button>
-            <div className="flex flex-col">
-              <h1 className="text-[11px] md:text-[14px] font-black tracking-[0.3em] md:tracking-[0.4em] uppercase text-cyan-400 italic flex items-center gap-2">
-                <BrainCircuit size={isMobile ? 14 : 18} className="animate-pulse" /> JARVISSE_AI
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-[10px] md:text-[14px] font-black tracking-[0.18em] md:tracking-[0.4em] uppercase text-cyan-400 italic flex items-center gap-2 truncate">
+                <BrainCircuit size={isMobile ? 14 : 18} className="animate-pulse shrink-0" /> <span className="truncate">JARVISSE_AI</span>
               </h1>
               {!isMobile && (
                 <div className="flex items-center gap-4 mt-1 opacity-40">
@@ -1116,7 +1137,7 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-1.5 md:gap-4 shrink-0">
             {token ? (
               <div className="flex items-center gap-2 md:gap-3">
                 <button 
@@ -1128,15 +1149,15 @@ export default function App() {
                 </button>
                 <button 
                   onClick={installApp} 
-                  className="flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-[9px] md:text-[11px] font-black tracking-widest text-blue-400 hover:bg-blue-500/20 transition-all shadow-blue animate-pulse"
+                  className="hidden md:flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-blue-500/10 border border-blue-500/30 rounded-xl text-[9px] md:text-[11px] font-black tracking-widest text-blue-400 hover:bg-blue-500/20 transition-all shadow-blue animate-pulse"
                   title="Installer JARVISSE"
                 >
                   <Save size={isMobile ? 12 : 14}/> INSTALLER
                 </button>
-                <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-cyan-500/5 border border-cyan-500/20 rounded-xl text-[9px] md:text-[11px] font-black tracking-widest text-cyan-400 shadow-cyan uppercase cursor-pointer hover:bg-cyan-500/10 transition-all" onClick={() => setShowShop(true)}>
-                  <Sparkles size={isMobile ? 12 : 14} className="text-yellow-400" /> {user.credits} <span className="hidden xs:inline">UNITÉS</span>
+                <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 bg-cyan-500/5 border border-cyan-500/20 rounded-xl text-[9px] md:text-[11px] font-black tracking-widest text-cyan-400 shadow-cyan uppercase cursor-pointer hover:bg-cyan-500/10 transition-all" onClick={() => setShowShop(true)}>
+                  <Sparkles size={isMobile ? 12 : 14} className="text-yellow-400" /> {user.credits} <span className="hidden md:inline">UNITÉS</span>
                 </div>
-                <button onClick={() => logout()} className="p-2.5 md:p-3 text-red-500/50 hover:text-red-500 transition-all hover:bg-red-500/10 rounded-xl">
+                <button onClick={() => logout()} className="hidden md:block p-2.5 md:p-3 text-red-500/50 hover:text-red-500 transition-all hover:bg-red-500/10 rounded-xl">
                   <LogOut size={isMobile ? 16 : 18}/>
                 </button>
               </div>
@@ -1195,7 +1216,7 @@ export default function App() {
         </AnimatePresence>
 
         {/* Chat Area */}
-        <main className="flex-1 overflow-y-auto px-3 md:px-6 py-6 md:py-10 scroll-smooth no-scrollbar relative select-text">
+        <main className={`flex-1 overflow-y-auto px-3 md:px-6 ${isSmallMobile ? 'py-4' : 'py-6'} md:py-10 scroll-smooth no-scrollbar relative select-text`}>
           <div className="max-w-4xl mx-auto space-y-8 md:space-y-12">
 
             {/* Welcome state */}
@@ -1223,10 +1244,10 @@ export default function App() {
               <div key={m.id} className="space-y-3">
                 {m.role === "user" ? (
                   <div className="flex justify-end pr-1">
-                    <div className="space-y-2 flex flex-col items-end max-w-[88%] md:max-w-[75%]">
+                    <div className={`space-y-2 flex flex-col items-end ${isSmallMobile ? 'max-w-[92%]' : 'max-w-[88%]'} md:max-w-[75%]`}>
                       {m.image && <img src={m.image} className="rounded-2xl w-48 md:w-64 border-2 border-cyan-500/20 shadow-cyan" />}
                       {m.content && (
-                        <div className="bg-cyan-600/10 backdrop-blur-md px-5 md:px-7 py-4 md:py-5 rounded-[32px] rounded-tr-none border border-cyan-500/30 text-cyan-50 shadow-cyan text-[14px] md:text-[15px] leading-relaxed font-medium">
+                        <div className={`bg-cyan-600/10 backdrop-blur-md ${isSmallMobile ? 'px-4 py-3 rounded-[24px]' : 'px-5 py-4 rounded-[32px]'} md:px-7 md:py-5 md:rounded-[32px] rounded-tr-none border border-cyan-500/30 text-cyan-50 shadow-cyan ${isSmallMobile ? 'text-[13px]' : 'text-[14px]'} md:text-[15px] leading-relaxed font-medium`}>
                           <span className="text-[9px] font-black tracking-widest text-cyan-400 block mb-2 opacity-50 uppercase">User_Transmission</span>
                           {m.content}
                         </div>
@@ -1304,7 +1325,10 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        <footer className="shrink-0 px-3 md:px-6 pt-2 pb-5 md:pb-8 z-50 bg-[#05060f] border-none">
+        <footer
+          className="shrink-0 px-3 md:px-6 pt-2 md:pb-8 z-50 bg-[#05060f] border-none"
+          style={{ paddingBottom: isMobile ? "calc(1rem + env(safe-area-inset-bottom))" : "2rem" }}
+        >
           <div className="max-w-4xl mx-auto space-y-2 md:space-y-4">
             
             {/* Image preview */}
@@ -1316,10 +1340,10 @@ export default function App() {
             )}
 
             {/* Input box */}
-            <div className={`rounded-[32px] md:rounded-[48px] border transition-all shadow-cyan overflow-hidden backdrop-blur-3xl ${isListening ? 'border-red-500/50 bg-red-500/5' : 'border-cyan-500/30 bg-[#0a1525]/80'}`}>
-              <div className="flex items-end gap-1 md:gap-3 px-3 py-3 md:py-4">
-                <button onClick={() => fileInputRef.current.click()} className="p-4 text-cyan-500 hover:text-cyan-300 transition-all shrink-0 hover:bg-cyan-500/10 rounded-full">
-                  <Paperclip size={20} />
+            <div className={`border transition-all shadow-cyan overflow-hidden backdrop-blur-3xl ${isSmallMobile ? 'rounded-[24px]' : 'rounded-[32px]'} md:rounded-[48px] ${isListening ? 'border-red-500/50 bg-red-500/5' : 'border-cyan-500/30 bg-[#0a1525]/80'}`}>
+              <div className={`flex items-end gap-1 md:gap-3 px-3 ${isSmallMobile ? 'py-2.5' : 'py-3'} md:py-4`}>
+                <button onClick={() => fileInputRef.current.click()} className={`${isSmallMobile ? 'p-3' : 'p-4'} text-cyan-500 hover:text-cyan-300 transition-all shrink-0 hover:bg-cyan-500/10 rounded-full`}>
+                  <Paperclip size={isSmallMobile ? 18 : 20} />
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                 <textarea 
@@ -1327,18 +1351,18 @@ export default function App() {
                   value={input} 
                   onChange={(e) => setInput(e.target.value)} 
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendMessage())} 
-                  className="flex-1 bg-transparent border-none focus:ring-0 resize-none py-3 px-2 text-cyan-50 placeholder-cyan-900/50 text-[15px] md:text-[16px] leading-relaxed min-w-0" 
+                  className={`flex-1 bg-transparent border-none focus:ring-0 resize-none py-3 px-2 text-cyan-50 placeholder-cyan-900/50 ${isSmallMobile ? 'text-[14px]' : 'text-[15px]'} md:text-[16px] leading-relaxed min-w-0`} 
                   placeholder={token ? "Entrez votre directive, Monsieur Roy..." : "🔒 ACCÈS REFUSÉ - INITIALISATION REQUISE"} 
                   rows={1}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck="false"
-                  style={{maxHeight: isMobile ? '100px' : '140px'}}
+                  style={{maxHeight: isSmallMobile ? '90px' : isMobile ? '100px' : '140px'}}
                 />
                 <button 
                   onClick={() => setIsListening(!isListening)} 
-                  className={`relative p-4 transition-all shrink-0 rounded-full flex items-center justify-center ${isListening ? "bg-red-500/10" : "text-cyan-500 hover:text-cyan-300 hover:bg-cyan-500/10"}`}
+                  className={`relative ${isSmallMobile ? 'p-3' : 'p-4'} transition-all shrink-0 rounded-full flex items-center justify-center ${isListening ? "bg-red-500/10" : "text-cyan-500 hover:text-cyan-300 hover:bg-cyan-500/10"}`}
                   title={isListening ? "Désactiver l'écoute active" : "Activer l'écoute active (Jarvisse...)"}
                 >
                   {micSignal && (
@@ -1348,25 +1372,25 @@ export default function App() {
                       className="absolute inset-0 rounded-full bg-red-500/50"
                     />
                   )}
-                  {isListening ? <MicOff size={20} className="text-red-500 relative z-10" /> : <Mic size={20} className="relative z-10" />}
+                  {isListening ? <MicOff size={isSmallMobile ? 18 : 20} className="text-red-500 relative z-10" /> : <Mic size={isSmallMobile ? 18 : 20} className="relative z-10" />}
                 </button>
                 <button 
                   onClick={() => sendMessage()} 
                   disabled={loading || (!input.trim() && !attachedImage) || !token} 
-                  className="p-4 md:p-5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-900 disabled:opacity-20 text-gray-950 rounded-full mb-0.5 transition-all active:scale-95 shadow-lg shadow-cyan-500/20 shrink-0"
+                  className={`${isSmallMobile ? 'p-3.5' : 'p-4'} md:p-5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-900 disabled:opacity-20 text-gray-950 rounded-full mb-0.5 transition-all active:scale-95 shadow-lg shadow-cyan-500/20 shrink-0`}
                 >
-                  {loading ? <div className="w-6 h-6 border-3 border-gray-950/20 border-t-gray-950 rounded-full animate-spin"></div> : <Send size={22} />}
+                  {loading ? <div className="w-6 h-6 border-3 border-gray-950/20 border-t-gray-950 rounded-full animate-spin"></div> : <Send size={isSmallMobile ? 20 : 22} />}
                 </button>
               </div>
             </div>
 
             {/* Model selector */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 px-1">
+            <div className={`flex items-center ${isSmallMobile ? 'gap-1.5' : 'gap-2'} overflow-x-auto no-scrollbar py-2 px-1`}>
               {models.map((m) => (
                 <button 
                   key={m.id} 
                   onClick={() => setSelectedModel(m.id)} 
-                  className={`whitespace-nowrap flex items-center gap-3 px-6 py-3 rounded-full border text-[10px] font-black tracking-[0.2em] uppercase transition-all shrink-0 ${selectedModel === m.id ? "bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-cyan" : "bg-white/3 border-white/5 text-cyan-900 hover:bg-white/10"}`}
+                  className={`whitespace-nowrap flex items-center ${isSmallMobile ? 'gap-2 px-4 py-2.5' : 'gap-3 px-6 py-3'} rounded-full border text-[10px] font-black tracking-[0.2em] uppercase transition-all shrink-0 ${selectedModel === m.id ? "bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-cyan" : "bg-white/3 border-white/5 text-cyan-900 hover:bg-white/10"}`}
                 >
                   <div className={`w-1.5 h-1.5 rounded-full ${selectedModel === m.id ? 'bg-cyan-400 animate-pulse' : 'bg-cyan-900'}`}></div>
                   {m.name}
