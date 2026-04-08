@@ -990,14 +990,30 @@ export default function App() {
   ].filter(m => !isMobile || !m.hideOnMobile);
 
   return (
-    <div className="flex bg-[#05060f] text-gray-100 font-sans h-full min-h-[100vh] overflow-hidden">
+    <div className="flex bg-[#05060f] text-gray-100 font-sans h-full min-h-[100dvh] overflow-hidden">
+      {isMobile && (
+        <div className="fixed top-[calc(env(safe-area-inset-top)+8px)] left-3 right-3 z-[120] pointer-events-none">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="pointer-events-auto p-2.5 rounded-xl text-cyan-400 border border-cyan-500/30 bg-[#0a1525]/80 backdrop-blur-xl shadow-cyan"
+              aria-label="Ouvrir le menu"
+            >
+              <Menu size={18} />
+            </button>
+            <div className="px-3 py-1.5 rounded-xl bg-[#0a1525]/70 border border-cyan-500/20 text-[10px] font-black tracking-[0.2em] uppercase text-cyan-300">
+              JARVISSE_AI
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Mobile overlay */}
       <AnimatePresence>
         {sidebarOpen && isMobile && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-[55] backdrop-blur-sm"
+            className="fixed inset-0 bg-black/60 z-[85] backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -1008,7 +1024,7 @@ export default function App() {
         {sidebarOpen && (
           <motion.aside 
             initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} 
-            className="fixed inset-y-0 left-0 w-[320px] max-w-[90vw] glass z-[60] flex flex-col p-6 shadow-cyan border-r border-cyan-500/20"
+            className="fixed inset-y-0 left-0 w-[320px] max-w-[90vw] glass z-[90] flex flex-col p-6 shadow-cyan border-r border-cyan-500/20"
           >
             <div className="flex items-center justify-between mb-10">
               <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-cyan-400 flex items-center gap-3 italic">
