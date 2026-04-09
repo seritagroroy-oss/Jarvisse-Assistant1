@@ -119,7 +119,6 @@ export default function App() {
     }
   }, []);
 
-  const [googleCloudVoices, setGoogleCloudVoices] = useState([]);
   const [ollamaStatus, setOllamaStatus] = useState({ status: 'unknown' });
 
   useEffect(() => {
