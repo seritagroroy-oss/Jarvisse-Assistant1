@@ -33,5 +33,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release: true
-          # Use linux or windows target based on runner
-          args: ${{ matrix.os == 'windows-latest' && '--win' || '--linux' }}
+          args: --win
