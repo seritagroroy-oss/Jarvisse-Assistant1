@@ -1,23 +1,23 @@
 const path = require("path");
-const { spawn } = require("child_process");
-const { app, BrowserWindow, session } = require("electron");
+const { app, BrowserWindow, session, utilityProcess } = require("electron");
 let agentProcess = null;
 
 function startLocalAgent() {
   if (agentProcess) return;
   try {
     const agentPath = path.join(__dirname, "agent_jarvis.js");
-    agentProcess = spawn(process.execPath, [agentPath], {
-      cwd: __dirname,
+    // Utilisation du processus utilitaire d'Electron (utilise le Node interne)
+    agentProcess = utilityProcess.fork(agentPath, [], {
+      stdio: "pipe",
       env: {
         ...process.env,
         JARVISSE_RESOURCES_PATH: process.resourcesPath || "",
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true
+      }
     });
+    
     agentProcess.stdout?.on("data", (d) => console.log(`[AGENT] ${String(d).trim()}`));
     agentProcess.stderr?.on("data", (d) => console.error(`[AGENT_ERR] ${String(d).trim()}`));
+    
     agentProcess.on("exit", (code) => {
       console.log(`[AGENT] exited: ${code}`);
       agentProcess = null;
