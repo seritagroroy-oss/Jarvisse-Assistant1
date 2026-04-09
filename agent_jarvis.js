@@ -1,9 +1,10 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import { exec, execSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const PORT = 3001;
@@ -125,6 +126,83 @@ app.post('/command', async (req, res) => {
   }
 });
 
+// --- GESTION DB LOCALE (USERS) ---
+const USERS_FILE = path.join(__dirname, 'users.json');
+
+const getUsers = () => {
+  try {
+    if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, '[]');
+    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+  } catch (e) { return []; }
+};
+
+const saveUsers = (users) => {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+};
+
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  const users = getUsers();
+  const user = users.find(u => u.email === email);
+  
+  if (user && await bcrypt.compare(password, user.password)) {
+    // Dans une version locale simple, on renvoie une structure similaire au cloud
+    return res.send({
+      token: "local-token-" + Date.now(),
+      email: user.email,
+      credits: user.credits || 999, // En local, les crédits sont illimités par défaut ?
+      plan: "ULTRA"
+    });
+  }
+  res.status(401).send({ error: "Identifiants incorrects (Mode Local)" });
+});
+
+app.post('/api/register', async (req, res) => {
+  const { email, password } = req.body;
+  const users = getUsers();
+  if (users.find(u => u.email === email)) return res.status(400).send({ error: "Email deja utilise" });
+  
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = { id: Date.now(), email, password: hashedPassword, credits: 999 };
+  users.push(newUser);
+  saveUsers(users);
+  res.send({ success: true });
+});
+
+app.get('/ollama-check', async (req, res) => {
+  try {
+    const r = await fetch('http://127.0.0.1:11434/api/tags');
+    if (r.ok) {
+      const data = await r.json();
+      const hasGemma = data.models?.some(m => m.name.includes('gemma'));
+      return res.send({ status: 'running', hasGemma });
+    }
+    throw new Error('Not responding');
+  } catch (e) {
+    res.send({ status: 'not_running', downloadUrl: 'https://ollama.com/download' });
+  }
+});
+
+app.post('/chat-local', async (req, res) => {
+  const { model = 'gemma', messages = [], stream = false } = req.body;
+  try {
+    const r = await fetch('http://127.0.0.1:11434/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages, stream })
+    });
+
+    if (!r.ok) {
+      return res.status(r.status).send({ error: "L'IA locale (Ollama) ne repond pas. Est-elle lancee ?" });
+    }
+
+    const data = await r.json();
+    return res.send(data);
+  } catch (e) {
+    return res.status(503).send({ error: "Ollama indisponible. Veuillez le demarrer." });
+  }
+});
+
 app.post('/execute', (req, res) => {
   const { action, value } = req.body;
 
@@ -132,52 +210,74 @@ app.post('/execute', (req, res) => {
     return res.status(400).send({ error: 'Action manquante' });
   }
 
+  const isWin = process.platform === 'win32';
   let command = '';
 
   switch (action) {
     case 'open_url':
-      command = `start "" "${value}"`;
+      command = isWin ? `start "" "${value}"` : `xdg-open "${value}"`;
       break;
     case 'open_app':
-      command = `start "" "${value}"`;
+      command = isWin ? `start "" "${value}"` : `${value}`;
       break;
-    case 'search':
-      command = `start "" "https://www.google.com/search?q=${encodeURIComponent(value)}"`;
+    case 'search': {
+      const url = `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+      command = isWin ? `start "" "${url}"` : `xdg-open "${url}"`;
       break;
+    }
     case 'system':
-      if (value === 'shutdown') command = 'shutdown /s /t 60';
-      if (value === 'cancel_shutdown') command = 'shutdown /a';
+      if (value === 'shutdown') {
+        command = isWin ? 'shutdown /s /t 60' : 'shutdown -h +1';
+      }
+      if (value === 'cancel_shutdown') {
+        command = isWin ? 'shutdown /a' : 'shutdown -c';
+      }
       break;
     case 'capture_screen': {
       const screenshotPath = path.join(process.cwd(), 'screenshot.png');
-      const powershellCommand = `
-        Add-Type -AssemblyName System.Windows.Forms;
-        Add-Type -AssemblyName System.Drawing;
-        $Screen = [System.Windows.Forms.Screen]::PrimaryScreen;
-        $Width = $Screen.Bounds.Width;
-        $Height = $Screen.Bounds.Height;
-        $Top = $Screen.Bounds.Top;
-        $Left = $Screen.Bounds.Left;
-        $Bitmap = New-Object System.Drawing.Bitmap($Width, $Height);
-        $Graphic = [System.Drawing.Graphics]::FromImage($Bitmap);
-        $Graphic.CopyFromScreen($Left, $Top, 0, 0, $Bitmap.Size);
-        $Bitmap.Save("${screenshotPath}", [System.Drawing.Imaging.ImageFormat]::Png);
-        $Graphic.Dispose();
-        $Bitmap.Dispose();
-      `;
+      
+      if (isWin) {
+        const powershellCommand = `
+          Add-Type -AssemblyName System.Windows.Forms;
+          Add-Type -AssemblyName System.Drawing;
+          $Screen = [System.Windows.Forms.Screen]::PrimaryScreen;
+          $Width = $Screen.Bounds.Width;
+          $Height = $Screen.Bounds.Height;
+          $Top = $Screen.Bounds.Top;
+          $Left = $Screen.Bounds.Left;
+          $Bitmap = New-Object System.Drawing.Bitmap($Width, $Height);
+          $Graphic = [System.Drawing.Graphics]::FromImage($Bitmap);
+          $Graphic.CopyFromScreen($Left, $Top, 0, 0, $Bitmap.Size);
+          $Bitmap.Save("${screenshotPath}", [System.Drawing.Imaging.ImageFormat]::Png);
+          $Graphic.Dispose();
+          $Bitmap.Dispose();
+        `;
+        try {
+          execSync(`powershell -Command "${powershellCommand.replace(/\n/g, ' ')}"`);
+        } catch (err) {
+          console.error('Erreur Capture Windows:', err);
+          return res.status(500).send({ error: "Echec de la capture d'ecran Windows" });
+        }
+      } else {
+        // Mode Linux (nécessite gnome-screenshot ou scrot)
+        try {
+          execSync(`gnome-screenshot -f "${screenshotPath}" || scrot "${screenshotPath}"`);
+        } catch (err) {
+          console.error('Erreur Capture Linux:', err);
+          return res.status(500).send({ error: "Echec de la capture Linux (gnome-screenshot ou scrot requis)" });
+        }
+      }
 
       try {
-        execSync(`powershell -Command "${powershellCommand.replace(/\n/g, ' ')}"`);
         const imageBase64 = fs.readFileSync(screenshotPath, { encoding: 'base64' });
         fs.unlinkSync(screenshotPath);
         return res.send({ status: 'success', image: `data:image/png;base64,${imageBase64}` });
       } catch (err) {
-        console.error('Erreur Capture:', err);
-        return res.status(500).send({ error: "Echec de la capture d'ecran" });
+        return res.status(500).send({ error: "Erreur lors du traitement de l'image" });
       }
     }
     case 'open_folder':
-      command = `explorer "${value}"`;
+      command = isWin ? `explorer "${value}"` : `xdg-open "${value}"`;
       break;
     default:
       return res.status(400).send({ error: 'Action non reconnue' });

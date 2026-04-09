@@ -6,9 +6,11 @@ import {
   Settings, History, ChevronLeft, Menu, X, Save, Cpu, Key, Play
 } from "lucide-react";
 import { marked } from "marked";
-const backendUrl = "https://jarvisse-assistant1.vercel.app";
+const CLOUD_BACKEND_URL = "https://jarvisse-assistant1.vercel.app";
+const LOCAL_BACKEND_URL = "http://localhost:3001";
 
 export default function App() {
+  const [backendUrl, setBackendUrl] = useState(CLOUD_BACKEND_URL);
   // Version 6.0.1 - Corrective Deployment
   const [input, setInput] = useState("");
   const [currentChatId, setCurrentChatId] = useState(localStorage.getItem("jarvis_active_id") || "default");
@@ -117,6 +119,10 @@ export default function App() {
     }
   }, []);
 
+  const [googleCloudVoices, setGoogleCloudVoices] = useState([]);
+  const [ollamaStatus, setOllamaStatus] = useState({ status: 'unknown' });
+  const [token, setToken] = useState(localStorage.getItem("token"));
+
   useEffect(() => {
     const loadGoogleCloudVoices = async () => {
       if (!token || !googleKey) {
@@ -139,9 +145,22 @@ export default function App() {
         setGoogleCloudVoices([]);
       }
     };
-
     loadGoogleCloudVoices();
-  }, [token, googleKey]);
+  }, [token, googleKey, backendUrl]);
+
+  useEffect(() => {
+    const checkOllama = async () => {
+      if (selectedModel !== "ollama" || !localAgentActive) return;
+      try {
+        const res = await fetch("http://localhost:3001/ollama-check");
+        if (res.ok) {
+          const data = await res.json();
+          setOllamaStatus(data);
+        }
+      } catch (e) {}
+    };
+    checkOllama();
+  }, [selectedModel, localAgentActive]);
 
   // --- BOUCLE PROACTIVE (JARVIS ANALYSE SEUL) ---
   useEffect(() => {
@@ -208,11 +227,21 @@ export default function App() {
     const checkAgent = async () => {
       try {
         // On ne check l'agent local que si on est en environnement Electron
-        if (!window.navigator.userAgent.includes("Electron")) return;
-        const res = await fetch("http://localhost:3001");
-        setLocalAgentActive(res.ok);
+        if (!window.navigator.userAgent.includes("Electron") && 
+            window.location.hostname !== "localhost") return;
+        
+        const res = await fetch(LOCAL_BACKEND_URL);
+        if (res.ok) {
+          setLocalAgentActive(true);
+          setBackendUrl(LOCAL_BACKEND_URL);
+          console.log("JARVISSE: Liaison locale etablie. Backend: Localhost");
+        } else {
+          setLocalAgentActive(false);
+          setBackendUrl(CLOUD_BACKEND_URL);
+        }
       } catch (e) {
         setLocalAgentActive(false);
+        setBackendUrl(CLOUD_BACKEND_URL);
       }
     };
     checkAgent();
@@ -330,6 +359,7 @@ export default function App() {
   };
 
   const geminiOptions = [
+    { id: "ollama", name: "Modèle Local (Ollama)", badge: "LOCAL" },
     { id: "google-direct", name: "Google Studio Direct (Prioritaire)" },
     { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro (Haut QI)" },
     { id: "google/gemini-flash-1.5", name: "Gemini 1.5 Flash (Rapide)" },
@@ -1047,19 +1077,37 @@ export default function App() {
         googleApiKey: googleKey, systemPrompt: systemPrompt
       };
 
-      console.log("JARVISSE: Appel satellite Vercel ->", `${backendUrl}/api/chat`);
-      const res = await fetch(`${backendUrl}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(errorData.error || `Erreur Serveur (${res.status})`);
-      }
+      let res, data;
 
-      const data = await res.json();
+      if (currentModel === "ollama") {
+        console.log("JARVISSE: Liaison locale Ollama...");
+        res = await fetch("http://localhost:3001/chat-local", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gemma", // Ou un paramètre dynamique
+            messages: [...chatHistory, { role: "user", content: currentInput }]
+          })
+        });
+        const localData = await res.json();
+        if (!res.ok) throw new Error(localData.error || "Ollama Error");
+        
+        // Adapter le format Ollama au format Jarvisse
+        data = { ollama: localData.message?.content || localData.response || "Erreur de réponse locale." };
+      } else {
+        console.log("JARVISSE: Appel satellite Vercel ->", `${backendUrl}/api/chat`);
+        res = await fetch(`${backendUrl}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(errorData.error || `Erreur Serveur (${res.status})`);
+        }
+        data = await res.json();
+      }
 
       // Interception commande Agent Local
       const replyText = currentModel === "multi" ? data.gpt : data[currentModel];
@@ -1231,7 +1279,33 @@ export default function App() {
           )}
 
           {/* HUD TACTICAL NOTIFICATIONS (PROACTIVE) */}
+          {/* OLLAMA STATUS ALERT */}
           <AnimatePresence>
+            {selectedModel === "ollama" && ollamaStatus.status === "not_running" && (
+              <motion.div 
+                initial={{ opacity: 0, y: -50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -50 }}
+                className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md"
+              >
+                <div className="glass border border-red-500/40 p-6 rounded-[32px] shadow-red relative overflow-hidden backdrop-blur-3xl bg-gray-950/80">
+                  <div className="flex items-center gap-3 mb-3 text-red-500 text-[11px] font-black tracking-[0.3em] uppercase italic">
+                    <Cpu size={16} className="animate-pulse" /> ALERTE_LIAISON_IA
+                  </div>
+                  <p className="text-white/80 text-[13px] leading-relaxed mb-4">
+                    Monsieur Roy, l'unité <span className="text-red-400 font-bold">OLLAMA</span> est hors-ligne. Je ne peux pas charger le modèle <span className="text-cyan-400 font-bold">GEMMA</span> localement sans ce protocole.
+                  </p>
+                  <a 
+                    href="https://ollama.com/download" 
+                    target="_blank" 
+                    className="block w-full py-3 bg-red-500/20 border border-red-500/30 rounded-2xl text-[10px] font-black text-red-400 uppercase tracking-widest hover:bg-red-500/40 transition-all text-center"
+                  >
+                    INSTALLER OLLAMA MAINTENANT
+                  </a>
+                </div>
+              </motion.div>
+            )}
+            
             {proactiveMsg && (
               <motion.div 
                 initial={{ opacity: 0, x: 100, scale: 0.9 }}

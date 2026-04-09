@@ -67,6 +67,14 @@
       "target": "portable",
       "signAndEditExecutable": false,
       "icon": "public/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "icon": "public/icon.png"
     }
   }
 }
