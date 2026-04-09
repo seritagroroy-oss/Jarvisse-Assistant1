@@ -53,10 +53,10 @@ export default function App() {
   );
   const [voices, setVoices] = useState([]);
   const [googleCloudVoices, setGoogleCloudVoices] = useState([]);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(localStorage.getItem("token") || "STARK_LOCAL_ACCESS_GRANTED");
   const [user, setUser] = useState({ 
-    email: localStorage.getItem("email"), 
-    credits: parseInt(localStorage.getItem("credits")) || 0 
+    email: localStorage.getItem("email") || "tony.stark@local", 
+    credits: parseInt(localStorage.getItem("credits")) || 999999 
   });
   const [userName, setUserName] = useState(localStorage.getItem("jarvis_user_name") || "Monsieur Roy");
   const [isListening, setIsListening] = useState(false);
@@ -1839,24 +1839,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Auth UI */}
-        {authMode !== "hidden" && !token && (
-          <div className="fixed inset-0 z-[100] bg-[#05060f] flex items-center justify-center p-5">
-            <form onSubmit={(e) => handleAuth(e, authMode)} className="w-full max-w-sm space-y-10 animate-in zoom-in duration-500">
-              <div className="text-center space-y-4">
-                <div className="text-5xl mb-4">🤖</div>
-                <h3 className="text-xl md:text-2xl font-black uppercase tracking-[0.3em] md:tracking-[0.4em] italic">ACCÈS_LOYAUTÉ</h3>
-                <p className="text-[10px] text-gray-600 uppercase tracking-widest">Système Jarvisse — Stark Protocol</p>
-              </div>
-              <div className="space-y-4">
-                <input name="email" type="email" placeholder="IDENTIFIANT ROY" className="w-full bg-white/5 border border-white/10 rounded-[20px] px-5 py-4 outline-none focus:border-blue-500 text-[11px] font-black tracking-[0.2em] text-blue-400 uppercase placeholder-gray-800" required />
-                <input name="password" type="password" placeholder="CODE_TACTIQUE" className="w-full bg-white/5 border border-white/10 rounded-[20px] px-5 py-4 outline-none focus:border-blue-500 text-[11px] font-black tracking-[0.2em] text-blue-400 uppercase placeholder-gray-800" required />
-                <button type="submit" className="w-full bg-blue-600 py-5 rounded-[20px] font-black uppercase tracking-[0.3em] text-[12px] shadow-2xl shadow-blue-600/20 active:scale-95 transition-all text-white">⚡ INITIALISER JARVISSE</button>
-              </div>
-              <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} className="text-center text-[10px] text-gray-600 cursor-pointer font-black uppercase tracking-[0.3em] hover:text-blue-500 transition-colors">{authMode === "login" ? "🔑 GÉNÉRER UN ACCÈS" : "← RETOUR UNITÉ"}</p>
-            </form>
-          </div>
-        )}
+        {/* Auth UI Supprimée pour Accès Direct */}
         {/* BOUTIQUE STARK MODAL */}
         <AnimatePresence>
           {showShop && (
