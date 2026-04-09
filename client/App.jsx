@@ -121,7 +121,6 @@ export default function App() {
 
   const [googleCloudVoices, setGoogleCloudVoices] = useState([]);
   const [ollamaStatus, setOllamaStatus] = useState({ status: 'unknown' });
-  const [token, setToken] = useState(localStorage.getItem("token"));
 
   useEffect(() => {
     const loadGoogleCloudVoices = async () => {
