@@ -127,7 +127,13 @@ app.post('/command', async (req, res) => {
 });
 
 // --- GESTION DB LOCALE (USERS) ---
-const USERS_FILE = path.join(__dirname, 'users.json');
+const getUserDataPath = () => {
+    const appData = process.env.APPDATA || (process.platform === 'darwin' ? process.env.HOME + '/Library/Preferences' : process.env.HOME + '/.local/share');
+    const folder = path.join(appData, 'JarvisseAssistant');
+    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+    return folder;
+};
+const USERS_FILE = path.join(getUserDataPath(), 'users.json');
 
 const getUsers = () => {
   try {
