@@ -42,7 +42,7 @@
     "postcss": "^8.4.35",
     "source-map": "^0.6.1",
     "tailwindcss": "^3.4.1",
-    "vite": "^8.0.5"
+    "vite": "^5.2.0"
   },
   "build": {
     "appId": "com.stark.jarvisse",
