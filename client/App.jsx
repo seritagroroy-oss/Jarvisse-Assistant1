@@ -1093,8 +1093,9 @@ export default function App() {
         // Adapter le format Ollama au format Jarvisse
         data = { ollama: localData.message?.content || localData.response || "Erreur de réponse locale." };
       } else {
-        console.log("JARVISSE: Appel satellite Vercel ->", `${backendUrl}/api/chat`);
-        res = await fetch(`${backendUrl}/api/chat`, {
+        const targetUrl = `${CLOUD_BACKEND_URL}/api/chat`;
+        console.log("JARVISSE: Appel satellite Cloud ->", targetUrl);
+        res = await fetch(targetUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify(payload)
