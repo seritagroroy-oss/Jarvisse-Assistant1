@@ -62,8 +62,15 @@ function createMainWindow() {
       contextIsolation: true,
       sandbox: false,
       nodeIntegration: false,
-      webSecurity: true
+      webSecurity: true,
+      autoplayPolicy: "no-user-gesture-required"
     }
+  });
+
+  // Forcer l'autorisation média au niveau système
+  win.webContents.session.setPermissionCheckHandler((webContents, permission) => {
+    if (permission === 'media' || permission === 'microphone') return true;
+    return false;
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
