@@ -1,6 +1,6 @@
 {
   "name": "jarvisse-assistant",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Assistant Personnel IA Tactique & Prototype Stark Industries",
   "author": "Monsieur Roy",
   "type": "module",
@@ -55,15 +55,7 @@
       "splash.html",
       "package.json"
     ],
-    "extraResources": [
-      {
-        "from": "jarvisse-native-builds/stark-ears",
-        "to": "stark-ears",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
+
     "win": {
       "target": "nsis",
       "signAndEditExecutable": false,
