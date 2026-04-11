@@ -52,6 +52,7 @@
       "electron-main.cjs",
       "agent_jarvis.js",
       "stark_ears.py",
+      "splash.html",
       "package.json"
     ],
     "extraResources": [
@@ -64,9 +65,20 @@
       }
     ],
     "win": {
-      "target": "portable",
+      "target": "nsis",
       "signAndEditExecutable": false,
       "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/icon.png",
+      "uninstallerIcon": "public/icon.png",
+      "installerHeaderIcon": "public/icon.png",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Jarvisse Assistant",
+      "language": "1036"
     },
     "linux": {
       "target": [

@@ -1,23 +1,31 @@
 const path = require("path");
 const { app, BrowserWindow, session, utilityProcess } = require("electron");
-let agentProcess = null;
 
+let agentProcess = null;
+let splashWindow = null;
+let mainWindow = null;
+
+// ─────────────────────────────────────────────
+//  AGENT — démarrage ASYNCHRONE en arrière-plan
+// ─────────────────────────────────────────────
 function startLocalAgent() {
   if (agentProcess) return;
   try {
     const agentPath = path.join(__dirname, "agent_jarvis.js");
-    // Utilisation du processus utilitaire d'Electron (utilise le Node interne)
     agentProcess = utilityProcess.fork(agentPath, [], {
       stdio: "pipe",
       env: {
         ...process.env,
         JARVISSE_RESOURCES_PATH: process.resourcesPath || "",
-      }
+      },
     });
-    
-    agentProcess.stdout?.on("data", (d) => console.log(`[AGENT] ${String(d).trim()}`));
-    agentProcess.stderr?.on("data", (d) => console.error(`[AGENT_ERR] ${String(d).trim()}`));
-    
+
+    agentProcess.stdout?.on("data", (d) =>
+      console.log(`[AGENT] ${String(d).trim()}`)
+    );
+    agentProcess.stderr?.on("data", (d) =>
+      console.error(`[AGENT_ERR] ${String(d).trim()}`)
+    );
     agentProcess.on("exit", (code) => {
       console.log(`[AGENT] exited: ${code}`);
       agentProcess = null;
@@ -33,6 +41,9 @@ function stopLocalAgent() {
   agentProcess = null;
 }
 
+// ─────────────────────────────────────────────
+//  PERMISSIONS MEDIA
+// ─────────────────────────────────────────────
 function allowMediaPermissions() {
   const ses = session.defaultSession;
 
@@ -50,45 +61,93 @@ function allowMediaPermissions() {
   });
 }
 
+// ─────────────────────────────────────────────
+//  SPLASH SCREEN — affiché instantanément
+// ─────────────────────────────────────────────
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 480,
+    height: 320,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    center: true,
+    backgroundColor: "#05060f",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  splashWindow.loadFile(path.join(__dirname, "splash.html"));
+  splashWindow.on("closed", () => { splashWindow = null; });
+}
+
+// ─────────────────────────────────────────────
+//  FENÊTRE PRINCIPALE
+// ─────────────────────────────────────────────
 function createMainWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
     autoHideMenuBar: true,
     backgroundColor: "#05060f",
+    show: false, // cachée jusqu'à ce que tout soit prêt
     webPreferences: {
       contextIsolation: true,
       sandbox: false,
       nodeIntegration: false,
       webSecurity: true,
-      autoplayPolicy: "no-user-gesture-required"
+      autoplayPolicy: "no-user-gesture-required",
+    },
+  });
+
+  // Autorisation micro au niveau fenêtre
+  mainWindow.webContents.session.setPermissionCheckHandler(
+    (webContents, permission) => {
+      if (permission === "media" || permission === "microphone") return true;
+      return false;
     }
-  });
+  );
 
-  // Forcer l'autorisation média au niveau système
-  win.webContents.session.setPermissionCheckHandler((webContents, permission) => {
-    if (permission === 'media' || permission === 'microphone') return true;
-    return false;
-  });
-
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     require("electron").shell.openExternal(url);
     return { action: "deny" };
   });
 
+  // Dès que la page est prête → on ferme le splash et on montre l'app
+  mainWindow.once("ready-to-show", () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
   const devUrl = process.env.ELECTRON_START_URL;
   if (devUrl) {
-    win.loadURL(devUrl);
+    mainWindow.loadURL(devUrl);
   } else {
-    win.loadFile(path.join(__dirname, "dist", "index.html"));
+    mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
   }
 }
 
+// ─────────────────────────────────────────────
+//  BOOTSTRAP
+// ─────────────────────────────────────────────
 app.whenReady().then(() => {
   allowMediaPermissions();
-  startLocalAgent();
+
+  // 1. Splash affiché en premier (instantané)
+  createSplashWindow();
+
+  // 2. Agent démarré en tâche de fond (n'attend pas)
+  setImmediate(() => startLocalAgent());
+
+  // 3. Fenêtre principale chargée en parallèle
   createMainWindow();
 
   app.on("activate", () => {
