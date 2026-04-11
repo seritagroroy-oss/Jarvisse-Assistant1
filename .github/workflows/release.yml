@@ -22,13 +22,17 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install Dependencies (including devDeps)
+        run: npm install --include=dev
 
       - name: Build React App
         run: npm run build
 
+      - name: Debug — List dist folder
+        run: Get-ChildItem -Recurse dist | Select-Object FullName
+
       - name: Build Electron NSIS Installer
-        run: npx electron-builder build --win --x64 --publish always
+        run: npx --no-install electron-builder build --win --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: electron-builder
