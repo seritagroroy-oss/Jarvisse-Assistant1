@@ -33,6 +33,7 @@ const resolveStarkEarsLaunch = () => {
   const exeCandidates = [
     explicitExe,
     path.join(resourceRoot, 'stark-ears', 'stark_ears.exe'),
+    path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'jarvisse-native-builds', 'stark-ears', 'stark_ears.exe'),
     path.join(__dirname, 'jarvisse-native-builds', 'stark-ears', 'stark_ears.exe'),
     path.join(process.cwd(), 'jarvisse-native-builds', 'stark-ears', 'stark_ears.exe')
   ].filter(Boolean);

@@ -43,7 +43,10 @@ def listen_background():
             except sr.RequestError as e:
                 print(f"[STARK EARS] /!\ ALERTE RESEAU GOOGLE /!\ {e}")
             except Exception as e:
-                pass
+                print(f"[STARK EARS] ERREUR CRITIQUE MICRO : {e}")
+                # Si erreur critique, on arrête l'écoute pour éviter de boucler sur une erreur
+                is_listening = False
+                break
 
 @app.route("/", methods=["GET"])
 def index():
@@ -78,10 +81,23 @@ def command():
         
     return jsonify({"status": "no change"}), 200
 
-if __name__ == "__main__":
-    port = int(os.getenv("STARK_EARS_PORT", "3002"))
+def list_microphones():
     print("="*50)
+    print("   LISTE DES MICROPHONES DÉTECTÉS :")
+    try:
+        mics = sr.Microphone.list_microphone_names()
+        if not mics:
+            print("   /!\ AUCUN MICRO DETECTÉ /!\ ")
+        for i, name in enumerate(mics):
+            print(f"   [{i}] {name}")
+    except Exception as e:
+        print(f"   /!\ ERREUR LORS DU LISTING DES MICROS : {e}")
+    print("="*50)
+
+if __name__ == "__main__":
+    list_microphones()
+    port = int(os.getenv("STARK_EARS_PORT", "3002"))
     print("   STARK EARS (PYTHON BACKGROUND AGENT) LANCE")
-    print(f"   Port : {port} | Mod??le : Google STT Gratuit ")
+    print(f"   Port : {port} | Modèle : Google STT Gratuit ")
     print("="*50)
     app.run(port=port, debug=False)

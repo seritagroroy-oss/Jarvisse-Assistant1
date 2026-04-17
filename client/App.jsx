@@ -650,7 +650,8 @@ export default function App() {
         body: JSON.stringify({ action: "start" })
       }).catch(e => console.error(e));
       
-      // Lancement du Radar pour Python
+      // Lancement du Radar facultatif (désactivé si possible pour éviter conflits avec Python)
+      /* 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
@@ -671,6 +672,7 @@ export default function App() {
         };
         updateLevel();
       } catch (e) {}
+      */
       return;
     }
 
