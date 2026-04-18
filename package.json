@@ -1,6 +1,6 @@
 {
   "name": "jarvisse-assistant",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Assistant Personnel IA Tactique & Prototype Stark Industries",
   "author": "Monsieur Roy",
   "type": "module",
@@ -13,7 +13,7 @@
     "stark:build:exe": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build_stark_ears_exe.ps1",
     "electron:dev": "npx electron .",
     "electron:build": "npx electron-builder build --win",
-    "release": "electron-builder build --win --publish always",
+    "release": "npx electron-builder build --win --publish always",
     "android:sync": "npx cap sync",
     "android:open": "npx cap open android"
   },
@@ -47,7 +47,7 @@
   },
   "build": {
     "appId": "com.stark.jarvisse",
-    "productName": "Jarvisse Assistant",
+    "productName": "JarvisseAssistant",
     "files": [
       "dist/**/*",
       "electron-main.cjs",
